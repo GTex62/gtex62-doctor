@@ -1144,7 +1144,7 @@ confirm"`, `"…during start"` or `"…during outer-cap stop"`. All three trip t
 
 <a id="net-fallback-ttl"></a>**NET FALLBACK TTL**
 
-**Indications:** NET row shows WARN / MISSING (profile TOML missing or lacks `[cache] ttl_sec`; `state` stays `"ok"`), with the TTL cell still able to read `1` while AGE climbs toward 60 — WARN because AGE exceeds that TTL, not because of the flag; DCM entry reads "NET profile TOML missing or has no `[cache] ttl_sec` — VLAN/ping meters are running at the 60s fallback cadence, not 1s.".
+**Indications:** NET row shows WARN / MISSING (profile TOML missing or lacks `[cache] ttl_sec`; `state` stays `"ok"`), and under this condition the TTL cell cannot be trusted: it can read `1` while the real cadence is 60s and AGE climbs toward 60 before each refresh — the row reads WARN once AGE passes the TTL the cell reports, not because of the flag; DCM entry reads "NET profile TOML missing or has no `[cache] ttl_sec` — VLAN/ping meters are running at the 60s fallback cadence, not 1s.".
 
 `MISSING` — the NET profile TOML is missing, or has no `[cache] ttl_sec`, and NET is running
 on the launcher's 60s fallback instead of its real 1s TTL. VLAN and ping meters appear
