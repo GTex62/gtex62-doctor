@@ -33,7 +33,9 @@ convention that paper QRHs carry in color is carried here in plain markdown inst
 | Conditional / branching statement | A literal ● followed by `IF …` |
 | Action line | `-ACTION.....VALUE`, dot-leadered, in a fenced block |
 | Exact field / value names | Code spans — `connectivity_state.status`, `state:"degraded"` |
-| NOTE / CAUTION | Blockquote |
+| Indications | **Indications:** line right after the title — the STATE / NOTE combination and DCM entry text that lead here |
+| NOTE | Blockquote labeled **NOTE:** — context: background, disambiguation, a nearby case that is *not* this procedure |
+| CAUTION | Blockquote labeled **CAUTION:** — a risk in the fix or in inaction: an action that can destroy data or will silently fail to take effect if done as written, or a consequence that becomes irreversible if the condition is ignored |
 | Related procedure | `PROC: <NAME>` line |
 | Closing line | `[End of Procedure]`, then a `---` rule — on every procedure, even where a category or chapter break already follows |
 
@@ -51,6 +53,22 @@ TITLE**. Categories used:
 | Dependency | Something owned by another domain or by the filesystem is what's missing |
 | Refresh Deadline | A time-limited copy obligation (GITHUB only) |
 | Informational | Not a fault — shown for completeness |
+
+**Indications.** Each procedure opens with an **Indications:** line saying what a reader sees that leads there: the row's STATE / NOTE, and the DCM entry text. Both come from the Actions / Remediation table in `doctor-design.md`, not from new wording. The DCM text is quoted from the table's action text — the fixed remediation DCM shows — cut at the first clause where the table text runs on. Every actionable NOTE highlights its row, raises a DCM entry and moves the header to `CHECK ACTIONS (N)`. GITHUB's STATE is hardcoded PRIVATE, so its rows show PRIVATE beside the NOTE, and an ORB or ASTRO fallback row reads NOMINAL beside MISSING — STATE follows AGE and the provider's own state, never a Doctor-derived flag. Where the design does not establish a DCM entry (config-completeness conditions), the line says so rather than supplying one.
+
+**NOTE and CAUTION.** A NOTE is context. A CAUTION is reserved for a risk in the fix or in inaction — the `--force` overwrite on the fallback procedures is the model for the first, GITHUB REFRESH's 14-day window for the second. A warning that only steers the reader off the wrong procedure is a NOTE.
+
+**Order within a category.** Procedures in each `###` section run most severe first, by the tier of the NOTE tag that raises the row (the tag is what highlights a row and triggers DCM; STATE cannot be the key, since GITHUB's is always PRIVATE and a fallback `MISSING` row can read NOMINAL). Within a tier, procedures keep their order.
+
+| Tier | Tag / kind | Meaning |
+| --- | --- | --- |
+| 1 | `ERROR`, `DEGRADED` (and `PARTIAL`, the provider-reported fault state AIR alone uses) | A provider-reported fault is driving the row |
+| 2 | `MISSING`, `STALE` (and `WAITING`, a wait on another domain) | The cache is absent or stale, or a domain is waiting on another |
+| 3 | Informational: config-completeness alerts, `OPTIONAL`, and the deadline-not-yet-broken case (GITHUB `REFRESH`) | Nothing is broken yet, or nothing is broken at all |
+
+**Tier and CAUTION are independent axes.** Tier marks current urgency — how much is broken right now. CAUTION marks consequence — a risk in the fix, or in ignoring the condition. A procedure can carry a serious CAUTION and still be low-urgency today, and a CAUTION never changes a procedure's tier. GITHUB `REFRESH` is the example: it is deliberately a softer signal than `STALE` — nothing is broken and the 4-day buffer is still open — so it is Tier 3, yet it carries a CAUTION because ignoring it past the 14-day window loses data for good. That is the two axes disagreeing on purpose, not a contradiction or an exception.
+
+The Procedure Index at the end is purely alphabetical — a lookup tool, not a severity one.
 
 **One tag, several causes.** A NOTE tag is a fast-scan pointer, not an explanation
 (`ERROR` alone covers three AIR conditions). Every ● branch below keys off the provider's own
@@ -208,6 +226,8 @@ Actions / Remediation. A domain with its own procedure uses that one instead.
 
 <a id="profile-toml-missing"></a>**PROFILE TOML MISSING**
 
+**Indications:** any enabled domain's row shows WARN / ERROR with `note:"missing profile toml"`; DCM entry reads the generic text "Add `<domain>.toml.example` under `examples/runtime/`, rerun bootstrap".
+
 `ERROR` — `state:"error"`, `note:"missing profile toml"`. The domain is enabled, but
 `profiles/<domain>/<profile>.toml` was never installed under the runtime root
 (`~/.config/gtex62-core/`). Most domains check for this explicitly and say so; the ones that
@@ -244,6 +264,8 @@ don't are listed below.
 
 <a id="provider-stale"></a>**PROVIDER STALE**
 
+**Indications:** any row shows WARN / STALE with the provider still reporting `state:"ok"` and no `degraded`; DCM entry reads the generic text "Check API key / network reachability for `<domain>`".
+
 `STALE` — the cache is older than the domain's TTL while `status.json` still says
 `state:"ok"`. Doctor-derived; the provider has not reported anything wrong, so there is no
 `note` to key off.
@@ -276,6 +298,8 @@ PROC: CONNECT SPEEDTEST STALE
 
 <a id="config-value-unset"></a>**CONFIG VALUE UNSET**
 
+**Indications:** no row NOTE — a config variable that is present but still a placeholder (`LAT=`, `LON=-`) raises none, so the row does not highlight. Whether DCM raises an entry for it is an open question (`doctor-design.md`, Open Questions — DCM active-state details); if it does, the generic text is "Edit `<file>`, set `<var>`".
+
 A config variable is present but still a placeholder (`LAT=`, `LON=-`). This is a
 config-completeness alert: checked once when the file is read, not recomputed against a
 threshold.
@@ -304,6 +328,8 @@ is AIR-only.
 
 <a id="air-coordinates-missing"></a>**AIR COORDINATES MISSING**
 
+**Indications:** AIR row shows WARN / ERROR (missing coordinates); DCM entry reads "Set `[location] lat`/`lon` in the air profile or `site.toml`".
+
 `ERROR` — pre-flight failure; `note` reports missing coordinates.
 
 ```text
@@ -315,6 +341,8 @@ is AIR-only.
 ---
 
 <a id="air-api-key-missing"></a>**AIR API KEY MISSING**
+
+**Indications:** AIR row shows WARN / ERROR (missing API key); DCM entry reads "Set OpenWeather Air Pollution API key in the air profile".
 
 `ERROR` — pre-flight failure; `note` reports the OpenWeather API key is missing.
 
@@ -330,6 +358,8 @@ is AIR-only.
 
 <a id="air-no-cache"></a>**AIR NO CACHE**
 
+**Indications:** AIR row shows WARN / ERROR (no cache yet); DCM entry reads "Check OpenWeather/AirNow API reachability for AIR".
+
 `ERROR` — `note:"air fetch failed; no cache"`. The first fetch failed and there is no prior
 cache to serve. Clears on the first successful fetch.
 
@@ -342,6 +372,8 @@ cache to serve. Clears on the first successful fetch.
 ---
 
 <a id="air-no-timestamp"></a>**AIR NO TIMESTAMP**
+
+**Indications:** AIR row shows WARN / PARTIAL (no provider timestamp); DCM entry reads "AIR cache has data but no reliable timestamp — check AirNow/OpenWeather API status".
 
 `PARTIAL` — `state:"partial"`, `note:"air cache has no provider timestamp"`. The cache holds
 data, but neither source yielded a usable observed timestamp. This can happen even when both
@@ -367,6 +399,8 @@ PROC: AIR AIRNOW DEGRADED
 
 <a id="air-openweather-degraded"></a>**AIR OPENWEATHER DEGRADED**
 
+**Indications:** AIR row shows WARN / DEGRADED (`note` starts "openweather source invalid"); DCM entry reads "OpenWeather AQI source down — check API key/quota".
+
 `DEGRADED` — `note` starts "openweather source invalid". `openweather.valid` is `false` while
 AirNow still resolves a timestamp. Fires only when OpenWeather is actually enabled in the
 profile, so a site that never configured it is not flagged.
@@ -385,6 +419,8 @@ PROC: AIR NO TIMESTAMP
 ---
 
 <a id="air-airnow-degraded"></a>**AIR AIRNOW DEGRADED**
+
+**Indications:** AIR row shows WARN / DEGRADED (`note` starts "airnow source invalid"); DCM entry reads "AirNow AQI source down — check API key/quota".
 
 `DEGRADED` — `note` starts "airnow source invalid". `airnow.valid` is `false` while
 OpenWeather still resolves a timestamp. Fires only when AirNow is actually enabled in the
@@ -411,6 +447,8 @@ PROC: AIR NO TIMESTAMP
 
 <a id="alerts-not-running"></a>**ALERTS NOT RUNNING**
 
+**Indications:** ALERTS row shows WARN / STALE (missing or stale `banner.json`); DCM entry reads "Alerts provider isn't running — check `fetch_alerts.sh` is wired into the refresh loop".
+
 `STALE` — `banner.json` is missing or past its TTL. ALERTS recomputes `banner.json` from
 other domains' caches on every run and always writes `state:"ok"` when it runs at all, so
 stale or missing means the script did not run: crashed, never invoked, or its cache
@@ -420,7 +458,7 @@ directory is unwritable.
 -FETCH_ALERTS.SH.................................WIRED INTO REFRESH LOOP
 ```
 
-> **CAUTION:** Not an API-key or network problem. ALERTS has no API of its own and no
+> **NOTE:** Not an API-key or network problem. ALERTS has no API of its own and no
 > failure path. Its 60s TTL is the launcher's bash default — no `profiles/alerts/*.toml`
 > ships.
 
@@ -441,6 +479,8 @@ functional dependency on PFSENSE, and a missing pfSense profile TOML has no effe
 
 <a id="ap-no-ips-configured"></a>**AP NO IPS CONFIGURED**
 
+**Indications:** AP row shows WARN / ERROR (no AP IPs configured); DCM entry reads "Set `[ap] ips`/`labels` in `site.toml`".
+
 `ERROR` — `note:"no ap ips configured"`. `site.toml [ap] ips` is empty or unset.
 
 ```text
@@ -452,6 +492,8 @@ functional dependency on PFSENSE, and a missing pfSense profile TOML has no effe
 ---
 
 <a id="ap-password-file-missing"></a>**AP PASSWORD FILE MISSING**
+
+**Indications:** AP row shows WARN / ERROR (password file not found); DCM entry reads "Create `~/.config/zyxel_ap/.pass`".
 
 `ERROR` — `note:"password file not found: <path>"`. The Zyxel `sshpass` credential file does
 not exist.
@@ -468,6 +510,8 @@ not exist.
 
 <a id="ap-ssh-gate"></a>**AP SSH GATE**
 
+**Indications:** AP row shows WARN / DEGRADED (SSH gate tripped); DCM entry reads "Check SSH alias / sshpass credentials for AP".
+
 `DEGRADED` — `note:"ssh gate tripped"`. AP's own gate, independent of pfSense's and
 Pi-hole's.
 
@@ -476,7 +520,7 @@ Pi-hole's.
 -CHECK SSHPASS CREDENTIALS............................................AP
 ```
 
-> **CAUTION:** Never "check the PFSENSE row." AP's gate and cache are self-contained;
+> **NOTE:** Never "check the PFSENSE row." AP's gate and cache are self-contained;
 > sending someone to PFSENSE means hunting for a cause that isn't there.
 
 [End of Procedure]
@@ -491,6 +535,8 @@ Pi-hole's.
 
 <a id="astro-location-missing"></a>**ASTRO LOCATION MISSING**
 
+**Indications:** ASTRO row shows WARN / ERROR (missing location); DCM entry reads "Set `[location] lat`/`lon` in the astro profile or `site.toml`".
+
 `ERROR` — `note:"missing location"`.
 
 ```text
@@ -504,6 +550,8 @@ Pi-hole's.
 ### Enablement
 
 <a id="astro-fallback-ttl"></a>**ASTRO FALLBACK TTL**
+
+**Indications:** ASTRO row shows NOMINAL / MISSING (TTL reads 60s, cannot confirm real versus fallback); STATE stays derived from AGE, which sits under TTL, so only the flag raises the NOTE and highlights the row; DCM entry reads "ASTRO profile TOML has no `[cache]` section — cannot confirm the 60s TTL is configured, not a fallback.".
 
 `MISSING` — the TTL cell reads 60s and Doctor cannot confirm it is configured rather than a
 fallback. The launcher takes ASTRO's cadence from `[cache] refresh_sec` in the astro profile
@@ -552,6 +600,8 @@ fields, each with its own `state` and `last_ok`.
 
 <a id="aviation-degraded"></a>**AVIATION DEGRADED**
 
+**Indications:** AVIATION row shows WARN / DEGRADED (one of metar/taf failing, or both); DCM entry reads "`<FIELD>` fetch failing for AVIATION; serving cached data from `<last_ok>`", or "METAR and TAF both failing for AVIATION; serving cached data" when both fail.
+
 `DEGRADED` — one or both of `metar`/`taf` is failing while cached data still exists to serve.
 The field name and its `last_ok` timestamp come straight from `note`
 (`"taf fetch failing; serving cached data from <last_ok>"`).
@@ -581,6 +631,8 @@ The field name and its `last_ok` timestamp come straight from `note`
 
 <a id="aviation-no-cache"></a>**AVIATION NO CACHE**
 
+**Indications:** AVIATION row shows WARN / ERROR (no cache yet); DCM entry reads "Check aviationweather.gov reachability for AVIATION".
+
 `ERROR` — `note:"aviation fetch failed; no cache"`. The first fetch failed and there is
 nothing to serve.
 
@@ -600,6 +652,8 @@ nothing to serve.
 
 <a id="calendar-never-run"></a>**CALENDAR NEVER RUN**
 
+**Indications:** CALENDAR row shows WARN / MISSING (missing cache entirely; AGE blank, since there is nothing to compute it from); DCM entry reads "Calendar has never run — check `refresh_loop`/`initial_refresh` wiring".
+
 `MISSING` — no cache exists. CALENDAR reads local text files only, so this is not a
 credentials problem. At an 86400s TTL a calendar that was simply never triggered would sit
 missing far longer than any staleness check would catch.
@@ -609,7 +663,7 @@ missing far longer than any staleness check would catch.
 -INITIAL_REFRESH WIRING............................................CHECK
 ```
 
-> **CAUTION:** A cache that exists but holds zero events is not this procedure. Past
+> **NOTE:** A cache that exists but holds zero events is not this procedure. Past
 > pre-flight CALENDAR always writes `state:"ok"`, and nothing in the cache distinguishes
 > "nothing on the calendar" from "the source file was never read."
 
@@ -632,6 +686,8 @@ on-demand only.
 
 <a id="connect-speedtest-failing"></a>**CONNECT SPEEDTEST FAILING**
 
+**Indications:** CONNECT row shows WARN / DEGRADED (`note` starts "speedtest failing"); DCM entry reads "Speedtest failing — check `speedtest` CLI is installed/licensed (`--accept-license --accept-gdpr`)".
+
 `DEGRADED` — `note` starts "speedtest failing" (`"speedtest failing: speedtest failed or
 unavailable"`). `status.json`'s `state` now follows `current.json`'s nested
 `speedtest.state`; a failed `speedtest` call is `speedtest.state:"error"`.
@@ -651,6 +707,8 @@ unavailable"`). `status.json`'s `state` now follows `current.json`'s nested
 ### Cache Staleness
 
 <a id="connect-speedtest-stale"></a>**CONNECT SPEEDTEST STALE**
+
+**Indications:** CONNECT row shows WARN / STALE (speedtest older than `max_age_days`, no error; AGE shows the last manual run); DCM entry reads "No speedtest has run in N days (on-demand only, no automatic refresh) — run manually".
 
 `STALE` — no speedtest has run in N days, past `max_age_days`, with no error. Doctor-derived
 from `current.json`'s own `age_days`, not from `status.json`'s age.
@@ -680,6 +738,8 @@ procedure here is a `fetch_github.sh` or profile-TOML fix. `STALE` is not used f
 
 <a id="github-registry-empty"></a>**GITHUB REGISTRY EMPTY**
 
+**Indications:** GITHUB row shows PRIVATE / ERROR (empty repo registry) — STATE is hardcoded PRIVATE, so the NOTE alone highlights the row; DCM entry reads "Populate `~/.config/conky/github-traffic-repos.json`".
+
 `ERROR` — `note:"no repos configured"`. The repo registry is empty.
 
 ```text
@@ -693,6 +753,8 @@ procedure here is a `fetch_github.sh` or profile-TOML fix. `STALE` is not used f
 ### Source Failure
 
 <a id="github-fetch-failing"></a>**GITHUB FETCH FAILING**
+
+**Indications:** GITHUB row shows PRIVATE / ERROR (fetch failed for one or more repos), possibly beside REFRESH in the same NOTE cell; DCM entry reads "GitHub API fetch failing for: `<repos>` — check `gh auth status`".
 
 `ERROR` — `note:"fetch failed for: <repos>"`. A `gh api` call failed for one or more repos;
 one failing repo raises `ERROR` for the whole domain.
@@ -716,6 +778,8 @@ PROC: GITHUB REFRESH
 
 <a id="github-never-run"></a>**GITHUB NEVER RUN**
 
+**Indications:** GITHUB row shows PRIVATE / MISSING (cache never written; GITHUB has no STALE); DCM entry reads "Check `systemctl --user status gtex62-github-traffic.timer`".
+
 `MISSING` — the cache was never written. GITHUB is on a systemd timer, so a missing cache
 means the timer needs attention, not a launcher script.
 
@@ -730,6 +794,8 @@ means the timer needs attention, not a launcher script.
 ### Refresh Deadline
 
 <a id="github-refresh"></a>**GITHUB REFRESH**
+
+**Indications:** GITHUB row shows PRIVATE / REFRESH, independent of STATE and possibly beside ERROR, with AGE switched to `N/14` (for example `10/14`) once the last successful fetch is 10 days old; DCM entry begins "GitHub traffic copy is `N`/14 days behind".
 
 `REFRESH` — the last successful fetch is 10 days old or older. Unlike every other tag,
 `REFRESH` tells you what to do rather than what is true.
@@ -811,6 +877,8 @@ as confirmed against `fetch_lyrics.sh` / `fetch_lyrics.py`.
 
 <a id="media-local-dir-unreachable"></a>**MEDIA LOCAL DIR UNREACHABLE**
 
+**Indications:** MEDIA row shows WARN / DEGRADED (`local_dir` unreachable); DCM entry reads "local_dir unreachable — check NAS mount".
+
 `DEGRADED` — `local_dir`, the configured lyrics library, is unreachable. `local_dir` may be
 a symlink to network storage; the provider only needs it configured and reachable.
 
@@ -825,6 +893,8 @@ a symlink to network storage; the provider only needs it configured and reachabl
 ### Informational
 
 <a id="media-genius-not-configured"></a>**MEDIA GENIUS NOT CONFIGURED**
+
+**Indications:** MEDIA row NOTE reads OPTIONAL (`genius_token` unset) — informational, not actionable: the row does not highlight and DCM raises no entry. The design's informational text is "Genius API not configured — optional".
 
 `OPTIONAL` — `genius_token` is unset. Informational, not a fault: it does not highlight the
 row and does not raise a DCM entry. Genius is the one API-keyed lyrics source; `lrclib` and
@@ -858,6 +928,8 @@ They can fire together, in which case `note` carries every reason.
 
 <a id="modem-password-not-set"></a>**MODEM PASSWORD NOT SET**
 
+**Indications:** MODEM row shows WARN / ERROR (password not configured); DCM entry reads "Set `[credentials].password` in the modem profile TOML (not `CHANGE_ME`)".
+
 `ERROR` — `note` names the exact TOML key: the password is missing or still `CHANGE_ME`.
 
 ```text
@@ -881,6 +953,8 @@ PROC: PROFILE TOML MISSING
 
 <a id="modem-unreachable"></a>**MODEM UNREACHABLE**
 
+**Indications:** MODEM row shows WARN / DEGRADED (`note` starts "modem unreachable"); DCM entry reads "Check pfSense NAT path to 192.168.100.1 (modem admin UI)".
+
 `DEGRADED` — `note` starts "modem unreachable: `<exc>`". A network-level failure reaching
 the modem's admin UI.
 
@@ -897,6 +971,8 @@ the modem's admin UI.
 ---
 
 <a id="modem-auth-failed"></a>**MODEM AUTH FAILED**
+
+**Indications:** MODEM row shows WARN / DEGRADED (`note` starts "modem auth failed"); DCM entry reads "Check modem credentials in `[credentials].password`".
 
 `DEGRADED` — `note` starts "modem auth failed". The modem was reached; login or session
 setup failed. Kept distinct from MODEM UNREACHABLE in `note` even though both map to the
@@ -918,6 +994,8 @@ PROC: MODEM UNREACHABLE
 
 <a id="modem-conn-degraded"></a>**MODEM CONN DEGRADED**
 
+**Indications:** MODEM row shows WARN / DEGRADED (`note` starts "modem not registered with Comcast"); DCM entry reads "Modem not registered with Comcast (`<connectivity_state.status>`) — check DOCSIS sync, not the scraper".
+
 `DEGRADED` — `note` starts "modem not registered with Comcast (connectivity state:
 `<value>`)". `connectivity_state.status`, the CM1000's own DOCSIS registration state, is
 present and is neither empty nor `"OK"` (case-insensitive). The modem is reachable and the
@@ -931,7 +1009,7 @@ exists to answer "is the modem actually registered," not "did the scrape succeed
 -SCRAPER...................................................NOT THE CAUSE
 ```
 
-> **CAUTION:** The scrape worked, so the NAT path to `192.168.100.1` is working — do not
+> **NOTE:** The scrape worked, so the NAT path to `192.168.100.1` is working — do not
 > send the reader there. That check belongs to PROC: MODEM UNREACHABLE.
 
 ● IF `note` instead mentions "header mapping incomplete", "not found" or "has no rows" —
@@ -958,6 +1036,8 @@ PROC: MODEM NO UPSTREAM LOCK
 ---
 
 <a id="modem-header-mapping"></a>**MODEM HEADER MAPPING**
+
+**Indications:** MODEM row shows WARN / DEGRADED (`note` mentions "header mapping incomplete", "not found", or "has no rows"); DCM entry reads "Modem admin UI layout may have changed — check the channel-table note in MODEM's status".
 
 `DEGRADED` — `note` mentions "header mapping incomplete", "not found" or "has no rows"
 (`parse_channel_table()`'s own text, for example `"table #<id> header mapping
@@ -993,6 +1073,8 @@ PROC: MODEM NO UPSTREAM LOCK
 
 <a id="modem-no-upstream-lock"></a>**MODEM NO UPSTREAM LOCK**
 
+**Indications:** MODEM row shows WARN / DEGRADED (`note` starts "no locked upstream channels"); DCM entry reads "Modem has no locked upstream channels — check DOCSIS upstream sync".
+
 `DEGRADED` — `note` starts "no locked upstream channels (modem cannot transmit upstream)".
 `upstream_channels` is non-empty and no entry has `locked:true`.
 
@@ -1000,7 +1082,7 @@ PROC: MODEM NO UPSTREAM LOCK
 -CHECK DOCSIS UPSTREAM SYNC........................................MODEM
 ```
 
-> **CAUTION:** A `0.0` in SitRep's US AVG while this NOTE is present is not a real
+> **NOTE:** A `0.0` in SitRep's US AVG while this NOTE is present is not a real
 > reading. The average used to render a fully-unlocked array as a plausible `0.0`; the NOTE
 > is what flags it now.
 
@@ -1024,6 +1106,8 @@ AP's.
 
 <a id="mtr-no-ssh-target"></a>**MTR NO SSH TARGET**
 
+**Indications:** MTR row shows WARN / ERROR (no `ssh_target` configured); DCM entry reads "Set `ssh_target` in the mtr profile TOML".
+
 `ERROR` — `note:"no ssh_target configured"`.
 
 ```text
@@ -1037,6 +1121,8 @@ AP's.
 ### SSH Gate
 
 <a id="mtr-ssh-gate"></a>**MTR SSH GATE**
+
+**Indications:** MTR row shows WARN / DEGRADED (SSH gate tripped); DCM entry reads "Check SSH alias / sshpass credentials for MTR (Pi5)".
 
 `DEGRADED` — `ssh_gate.tripped:true`. `note` names which SSH step failed: `"ssh failed during
 confirm"`, `"…during start"` or `"…during outer-cap stop"`. All three trip the same gate.
@@ -1058,6 +1144,8 @@ confirm"`, `"…during start"` or `"…during outer-cap stop"`. All three trip t
 
 <a id="net-fallback-ttl"></a>**NET FALLBACK TTL**
 
+**Indications:** NET row shows WARN / MISSING (profile TOML missing or lacks `[cache] ttl_sec`; `state` stays `"ok"`), with the TTL cell still able to read `1` while AGE climbs toward 60 — WARN because AGE exceeds that TTL, not because of the flag; DCM entry reads "NET profile TOML missing or has no `[cache] ttl_sec` — VLAN/ping meters are running at the 60s fallback cadence, not 1s.".
+
 `MISSING` — the NET profile TOML is missing, or has no `[cache] ttl_sec`, and NET is running
 on the launcher's 60s fallback instead of its real 1s TTL. VLAN and ping meters appear
 frozen: a 60x slowdown in a fast-track domain.
@@ -1071,7 +1159,7 @@ than inferring from the TTL number.
 This is the canonical, documented instance of the bootstrap gap in `architecture.md` and
 this project's `CLAUDE.md`.
 
-> **CAUTION:** Do not trust the TTL cell at face value for this domain. It can read `1`
+> **NOTE:** Do not trust the TTL cell at face value for this domain. It can read `1`
 > while NET is actually refreshing every 60 seconds. Confirm from AGE instead. A healthy
 > NET at its real 1s TTL shows a blank AGE (near-zero, never past a second or two); on the
 > fallback, AGE becomes a populated value that climbs toward 60 before each refresh resets
@@ -1095,7 +1183,7 @@ this project's `CLAUDE.md`.
 > **CAUTION:** Bootstrap will not fix this second case. It skips a file that already exists
 > (`skip  <path>`), and `--force` overwrites the whole profile, discarding local edits.
 >
-> **NOTE:** The restart is not optional. `bin/gtex62-core-launch` parses each domain's TTL
+> **CAUTION:** The restart is not optional. `bin/gtex62-core-launch` parses each domain's TTL
 > once, at startup, and passes it to `refresh_loop` for the life of the process. A repaired
 > profile does not change a running loop.
 
@@ -1112,6 +1200,8 @@ PROC: NET NOT RUNNING
 ### Cache Staleness
 
 <a id="net-not-running"></a>**NET NOT RUNNING**
+
+**Indications:** NET row shows WARN / STALE (missing or not refreshing at all); DCM entry reads "NET provider isn't running — check `refresh_loop` is alive".
 
 `STALE` — NET's cache is missing or not refreshing at all. At a 1s TTL, a fast-track domain
 missing for more than a couple of poll cycles means the loop itself is dead, not that a
@@ -1139,6 +1229,8 @@ PROC: NET FALLBACK TTL
 ### Silent Gaps
 
 <a id="network-null-fields"></a>**NETWORK NULL FIELDS**
+
+**Indications:** NETWORK row shows WARN / DEGRADED (`note` starts "null field(s):"); DCM entry reads "NIC detection or public-IP lookup failing — check `primary_interface` config and outbound connectivity".
 
 `DEGRADED` — `note` starts "null field(s):" and names exactly which of `wan_ip`, `dns` and
 `gateway` came back empty — one, two or all three. A NIC-detection or lookup failure that
@@ -1178,12 +1270,14 @@ PROC: PROFILE TOML MISSING
 
 <a id="orb-fallback-ttl"></a>**ORB FALLBACK TTL**
 
+**Indications:** ORB row shows NOMINAL / MISSING (TTL reads 60s, cannot confirm real versus fallback); AGE looks healthy either way, so STATE stays NOMINAL and only the flag raises the NOTE and highlights the row; DCM entry reads "ORB profile TOML missing or has no `[cache] ttl_sec` — cannot confirm the 60s TTL is configured, not a fallback.".
+
 `MISSING` — the TTL cell reads 60s and Doctor cannot confirm it is configured rather than a
 fallback. The installed profile (`profiles/orb/home.toml`) sets `[cache] ttl_sec = 60`, and
 the launcher's own fallback (`ORB_TTL="${ORB_TTL:-60}"`) is also 60, so a configured ORB and
 a fallen-back ORB behave identically. The explicit flag is the only way to tell them apart.
 
-> **CAUTION:** Unlike NET, AGE cannot break the tie. The real cadence and the fallback
+> **NOTE:** Unlike NET, AGE cannot break the tie. The real cadence and the fallback
 > cadence are the same, so the row looks healthy either way. Doctor's own check of the
 > profile's existence and `[cache] ttl_sec` key is the only evidence.
 
@@ -1235,6 +1329,8 @@ live profile).
 
 <a id="pfsense-no-ssh-target"></a>**PFSENSE NO SSH TARGET**
 
+**Indications:** PFSENSE row shows WARN / ERROR (no `ssh_target` configured); DCM entry reads "Set `ssh_target` in the pfsense profile TOML".
+
 `ERROR` — no `ssh_target` configured.
 
 ```text
@@ -1248,6 +1344,8 @@ live profile).
 ### SSH Gate
 
 <a id="pfsense-ssh-gate"></a>**PFSENSE SSH GATE**
+
+**Indications:** PFSENSE row shows WARN / DEGRADED (SSH gate tripped or failed); DCM entry reads "Check SSH alias / sshpass credentials".
 
 `DEGRADED` — the SSH gate tripped, or an SSH call failed. Both paths write stub `arp_leases`
 and `history` envelopes matching the main envelope's state.
@@ -1266,6 +1364,8 @@ and `history` envelopes matching the main envelope's state.
 ### Cache Staleness
 
 <a id="pfsense-subcache-stale"></a>**PFSENSE SUBCACHE STALE**
+
+**Indications:** PFSENSE row shows WARN / STALE (any one enabled sub-cache stale; WARN overrides HYBRID); DCM entry names the specific sub-cache (status, router, pfblockerng, ifaces, arp or leases), not just "PFSENSE".
 
 `STALE` — any one *enabled* sub-cache is past its TTL. The row is worst-state-wins, and a
 single `DEGRADED` or `STALE` can originate from any one of the independently gated fetches,
@@ -1300,6 +1400,8 @@ and nothing else.
 
 <a id="pihole-no-ssh-target"></a>**PIHOLE NO SSH TARGET**
 
+**Indications:** PIHOLE row shows WARN / ERROR (no `ssh_target` configured); DCM entry reads "Set `ssh_target` in the `[pihole]` section of the pfsense profile TOML, or `[pihole] ssh_target` in `site.toml`".
+
 `ERROR` — `note:"no ssh_target configured"`.
 
 ```text
@@ -1315,6 +1417,8 @@ and nothing else.
 
 <a id="pihole-ssh-gate"></a>**PIHOLE SSH GATE**
 
+**Indications:** PIHOLE row shows WARN / DEGRADED (`note` is "ssh gate tripped" or "ssh failed"); DCM entry reads "Check SSH alias / sshpass credentials for PIHOLE (Pi5)".
+
 `DEGRADED` — `note` is "ssh gate tripped" or "ssh failed".
 
 ```text
@@ -1322,7 +1426,7 @@ and nothing else.
 -CHECK SSHPASS CREDENTIALS..................................PIHOLE (Pi5)
 ```
 
-> **CAUTION:** Never "check the PFSENSE row." PIHOLE's gate and cache are independent of
+> **NOTE:** Never "check the PFSENSE row." PIHOLE's gate and cache are independent of
 > pfSense's, the same self-containment as AP and MTR.
 
 [End of Procedure]
@@ -1337,6 +1441,8 @@ and nothing else.
 
 <a id="solar-waiting"></a>**SOLAR WAITING**
 
+**Indications:** SOLAR row shows WARN / WAITING (`state:"waiting"`); DCM entry reads "SOLAR is waiting on the WEATHER cache — check the WEATHER row, not SOLAR's own config".
+
 `WAITING` — `state:"waiting"`, `note:"waiting for weather cache"`. SOLAR polls for up to 20s
 (40 × 0.5s) for the WEATHER cache
 (`shared/weather/<profile>/raw_current.json` or `current.json`) to appear, and writes this
@@ -1346,7 +1452,7 @@ explicit state if neither does. It is never a SOLAR-side fault.
 -CHECK ROW.......................................................WEATHER
 ```
 
-> **CAUTION:** Defer entirely to WEATHER. Do not render SOLAR-specific remediation — there
+> **NOTE:** Defer entirely to WEATHER. Do not render SOLAR-specific remediation — there
 > is nothing wrong with SOLAR's own configuration.
 
 ```text
@@ -1367,6 +1473,8 @@ PROC: WEATHER CONFIG MISSING
 
 <a id="system-not-running"></a>**SYSTEM NOT RUNNING**
 
+**Indications:** SYSTEM row shows WARN / STALE (missing or stale at 1s TTL); DCM entry reads "SYSTEM provider isn't running — check `refresh_loop` is alive".
+
 `STALE` — the cache is missing or stale at a 1s TTL. SYSTEM is local-only with no network
 dependency and no error path past pre-flight, so a cache missing for more than a couple of
 poll cycles means the refresh loop is dead, not that a fetch failed.
@@ -1386,6 +1494,8 @@ poll cycles means the refresh loop is dead, not that a fetch failed.
 ### Cache Staleness
 
 <a id="time-not-running"></a>**TIME NOT RUNNING**
+
+**Indications:** TIME row shows WARN / STALE (missing or stale at 1s TTL); DCM entry reads "TIME provider isn't running — check `refresh_loop` is alive".
 
 `STALE` — the cache is missing or stale at a 1s TTL. TIME is pure `zoneinfo`/`datetime`
 arithmetic with no external call that can fail, so this means the refresh loop is dead.
@@ -1414,6 +1524,8 @@ trustworthy on its own, and Doctor never needs to read `health` instead. Read `h
 
 <a id="vpn-piactl-missing"></a>**VPN PIACTL MISSING**
 
+**Indications:** VPN row shows WARN / ERROR (`note` "piactl not found"); DCM entry reads "PIA client not installed or not on PATH".
+
 `ERROR` — `note:"piactl not found"`. The PIA client is not installed or not on `PATH`. Not
 the same as a cache that was never written.
 
@@ -1436,6 +1548,8 @@ PROC: PROFILE TOML MISSING
 
 <a id="vpn-wg-stats-degraded"></a>**VPN WG STATS DEGRADED**
 
+**Indications:** VPN row shows WARN / DEGRADED (`note` mentions "sudo wg dump failed" or "wg not found", with `connectionstate:"Connected"`); DCM entry reads "WireGuard stats unavailable — check `/etc/sudoers.d/gtex62-core-vpn`".
+
 `DEGRADED` — `note` mentions "sudo wg dump failed" or "wg not found", and
 `connectionstate` is `"Connected"`. piactl believes the tunnel is up, but the WireGuard stats
 could not be read: `latest_handshake_seconds` and `transfer` go `null`, and `health` reads
@@ -1453,7 +1567,7 @@ could not be read: `latest_handshake_seconds` and `transfer` go `null`, and `hea
 -CONFIRM wg BINARY.............................................INSTALLED
 ```
 
-> **CAUTION:** `health:"DEAD"` on its own is not this procedure. PIA tears the `wgpia0`
+> **NOTE:** `health:"DEAD"` on its own is not this procedure. PIA tears the `wgpia0`
 > interface down on an ordinary voluntary disconnect, which drives `health` to `"DEAD"` and
 > makes the dump fail for a non-alarming reason. The check is gated on
 > `connectionstate == "Connected"` for exactly that reason, so a routine disconnect stays
@@ -1472,6 +1586,8 @@ PROC: VPN TUNNEL PING DEGRADED
 ---
 
 <a id="vpn-tunnel-ping-degraded"></a>**VPN TUNNEL PING DEGRADED**
+
+**Indications:** VPN row shows WARN / DEGRADED (`note` starts "tunnel ping failing"); DCM entry reads "VPN tunnel ping failing — check tunnel interface routing (transient, or `1.1.1.1` unreachable through the tunnel)".
 
 `DEGRADED` — `note` starts "tunnel ping failing". `tunnel_latency_ms` is `null` while `health`
 is not `"DEAD"`: the tunnel is otherwise connected, but the ping through it failed. `note`
@@ -1511,6 +1627,8 @@ PROC: VPN WG STATS DEGRADED
 
 <a id="weather-config-missing"></a>**WEATHER CONFIG MISSING**
 
+**Indications:** WEATHER row shows WARN / ERROR (missing credentials/coordinates); DCM entry reads "Set API key and `[location] lat`/`lon` in the weather profile".
+
 `ERROR` — missing credentials or coordinates.
 
 ```text
@@ -1525,6 +1643,8 @@ PROC: VPN WG STATS DEGRADED
 ### Source Failure
 
 <a id="weather-degraded"></a>**WEATHER DEGRADED**
+
+**Indications:** WEATHER row shows WARN / DEGRADED (one of current/forecast failing); DCM entry reads "`<FIELD>` fetch failing for WEATHER; serving cached data from `<last_ok>`".
 
 `DEGRADED` — one of `current` or `forecast` is failing while cached data still exists. The
 field and its `last_ok` timestamp come straight from `note`
@@ -1545,6 +1665,8 @@ PROC: SOLAR WAITING
 ---
 
 <a id="weather-no-cache"></a>**WEATHER NO CACHE**
+
+**Indications:** WEATHER row shows WARN / ERROR (no cache yet); DCM entry reads "Check OpenWeather API reachability for WEATHER".
 
 `ERROR` — `note:"weather fetch failed; no cache"`. The first fetch failed and there is
 nothing to serve.
