@@ -35,7 +35,7 @@ convention that paper QRHs carry in color is carried here in plain markdown inst
 | Exact field / value names | Code spans — `connectivity_state.status`, `state:"degraded"` |
 | NOTE / CAUTION | Blockquote |
 | Related procedure | `PROC: <NAME>` line |
-| Closing line | `[End of Procedure]` |
+| Closing line | `[End of Procedure]`, then a `---` rule — on every procedure, even where a category or chapter break already follows |
 
 **Structure.** `## DOMAIN` (subchapter) → `### Condition category` (section) → **PROCEDURE
 TITLE**. Categories used:
@@ -238,6 +238,8 @@ don't are listed below.
 
 [End of Procedure]
 
+---
+
 ### Cache Staleness
 
 <a id="provider-stale"></a>**PROVIDER STALE**
@@ -268,6 +270,8 @@ PROC: CONNECT SPEEDTEST STALE
 
 [End of Procedure]
 
+---
+
 ### Configuration
 
 <a id="config-value-unset"></a>**CONFIG VALUE UNSET**
@@ -285,6 +289,8 @@ threshold.
 > one is an open question in `doctor-design.md` (Open Questions, DCM active-state details).
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -306,6 +312,8 @@ is AIR-only.
 
 [End of Procedure]
 
+---
+
 <a id="air-api-key-missing"></a>**AIR API KEY MISSING**
 
 `ERROR` — pre-flight failure; `note` reports the OpenWeather API key is missing.
@@ -315,6 +323,8 @@ is AIR-only.
 ```
 
 [End of Procedure]
+
+---
 
 ### Source Failure
 
@@ -328,6 +338,8 @@ cache to serve. Clears on the first successful fetch.
 ```
 
 [End of Procedure]
+
+---
 
 <a id="air-no-timestamp"></a>**AIR NO TIMESTAMP**
 
@@ -349,6 +361,8 @@ PROC: AIR AIRNOW DEGRADED
 
 [End of Procedure]
 
+---
+
 ### Silent Gaps
 
 <a id="air-openweather-degraded"></a>**AIR OPENWEATHER DEGRADED**
@@ -368,6 +382,8 @@ PROC: AIR NO TIMESTAMP
 
 [End of Procedure]
 
+---
+
 <a id="air-airnow-degraded"></a>**AIR AIRNOW DEGRADED**
 
 `DEGRADED` — `note` starts "airnow source invalid". `airnow.valid` is `false` while
@@ -384,6 +400,8 @@ PROC: AIR NO TIMESTAMP
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -410,6 +428,8 @@ directory is unwritable.
 
 ---
 
+---
+
 ## AP
 
 AP runs its own SSH session to each Zyxel AP, with its own gate (`runtime/ap/ssh_state`) and
@@ -429,6 +449,8 @@ functional dependency on PFSENSE, and a missing pfSense profile TOML has no effe
 
 [End of Procedure]
 
+---
+
 <a id="ap-password-file-missing"></a>**AP PASSWORD FILE MISSING**
 
 `ERROR` — `note:"password file not found: <path>"`. The Zyxel `sshpass` credential file does
@@ -439,6 +461,8 @@ not exist.
 ```
 
 [End of Procedure]
+
+---
 
 ### SSH Gate
 
@@ -459,6 +483,8 @@ Pi-hole's.
 
 ---
 
+---
+
 ## ASTRO
 
 ### Configuration
@@ -472,6 +498,8 @@ Pi-hole's.
 ```
 
 [End of Procedure]
+
+---
 
 ### Enablement
 
@@ -513,6 +541,8 @@ PROC: ORB FALLBACK TTL
 
 ---
 
+---
+
 ## AVIATION
 
 The reference model for per-field staleness: `metar` and `taf` are tracked as independent
@@ -547,6 +577,8 @@ The field name and its `last_ok` timestamp come straight from `note`
 
 [End of Procedure]
 
+---
+
 <a id="aviation-no-cache"></a>**AVIATION NO CACHE**
 
 `ERROR` — `note:"aviation fetch failed; no cache"`. The first fetch failed and there is
@@ -557,6 +589,8 @@ nothing to serve.
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -587,6 +621,8 @@ PROC: PROFILE TOML MISSING
 
 ---
 
+---
+
 ## CONNECT
 
 CONNECT has `initial_refresh` in the launcher but no `refresh_loop`: speedtest snapshots are
@@ -610,6 +646,8 @@ unavailable"`). `status.json`'s `state` now follows `current.json`'s nested
 
 [End of Procedure]
 
+---
+
 ### Cache Staleness
 
 <a id="connect-speedtest-stale"></a>**CONNECT SPEEDTEST STALE**
@@ -625,6 +663,8 @@ from `current.json`'s own `age_days`, not from `status.json`'s age.
 > last manual run.
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -648,6 +688,8 @@ procedure here is a `fetch_github.sh` or profile-TOML fix. `STALE` is not used f
 
 [End of Procedure]
 
+---
+
 ### Source Failure
 
 <a id="github-fetch-failing"></a>**GITHUB FETCH FAILING**
@@ -668,6 +710,8 @@ PROC: GITHUB REFRESH
 
 [End of Procedure]
 
+---
+
 ### Cache Staleness
 
 <a id="github-never-run"></a>**GITHUB NEVER RUN**
@@ -680,6 +724,8 @@ means the timer needs attention, not a launcher script.
 ```
 
 [End of Procedure]
+
+---
 
 ### Refresh Deadline
 
@@ -753,6 +799,8 @@ Confirm the fix:
 
 ---
 
+---
+
 ## MEDIA
 
 **Provisional.** MEDIA's entries have not had the script-level verification pass the other
@@ -772,6 +820,8 @@ a symlink to network storage; the provider only needs it configured and reachabl
 
 [End of Procedure]
 
+---
+
 ### Informational
 
 <a id="media-genius-not-configured"></a>**MEDIA GENIUS NOT CONFIGURED**
@@ -788,6 +838,8 @@ row and does not raise a DCM entry. Genius is the one API-keyed lyrics source; `
 > whether `genius_token` is set or empty — presence only, never the token itself.
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -823,6 +875,8 @@ PROC: PROFILE TOML MISSING
 
 [End of Procedure]
 
+---
+
 ### Source Failure
 
 <a id="modem-unreachable"></a>**MODEM UNREACHABLE**
@@ -840,6 +894,8 @@ the modem's admin UI.
 
 [End of Procedure]
 
+---
+
 <a id="modem-auth-failed"></a>**MODEM AUTH FAILED**
 
 `DEGRADED` — `note` starts "modem auth failed". The modem was reached; login or session
@@ -855,6 +911,8 @@ PROC: MODEM UNREACHABLE
 ```
 
 [End of Procedure]
+
+---
 
 ### Silent Gaps
 
@@ -897,6 +955,8 @@ PROC: MODEM NO UPSTREAM LOCK
 
 [End of Procedure]
 
+---
+
 <a id="modem-header-mapping"></a>**MODEM HEADER MAPPING**
 
 `DEGRADED` — `note` mentions "header mapping incomplete", "not found" or "has no rows"
@@ -929,6 +989,8 @@ PROC: MODEM NO UPSTREAM LOCK
 
 [End of Procedure]
 
+---
+
 <a id="modem-no-upstream-lock"></a>**MODEM NO UPSTREAM LOCK**
 
 `DEGRADED` — `note` starts "no locked upstream channels (modem cannot transmit upstream)".
@@ -951,6 +1013,8 @@ PROC: MODEM HEADER MAPPING
 
 ---
 
+---
+
 ## MTR
 
 MTR is trigger-armed and has its own SSH gate (`runtime/mtr`), independent of pfSense's and
@@ -968,6 +1032,8 @@ AP's.
 
 [End of Procedure]
 
+---
+
 ### SSH Gate
 
 <a id="mtr-ssh-gate"></a>**MTR SSH GATE**
@@ -981,6 +1047,8 @@ confirm"`, `"…during start"` or `"…during outer-cap stop"`. All three trip t
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -1039,6 +1107,8 @@ PROC: NET NOT RUNNING
 
 [End of Procedure]
 
+---
+
 ### Cache Staleness
 
 <a id="net-not-running"></a>**NET NOT RUNNING**
@@ -1059,6 +1129,8 @@ PROC: NET FALLBACK TTL
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -1095,6 +1167,8 @@ PROC: PROFILE TOML MISSING
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -1138,6 +1212,8 @@ PROC: NET FALLBACK TTL
 
 ---
 
+---
+
 ## PFSENSE
 
 PFSENSE is a family of independently gated sub-caches, not one TTL. Pi-hole is not one of
@@ -1167,6 +1243,8 @@ live profile).
 
 [End of Procedure]
 
+---
+
 ### SSH Gate
 
 <a id="pfsense-ssh-gate"></a>**PFSENSE SSH GATE**
@@ -1182,6 +1260,8 @@ and `history` envelopes matching the main envelope's state.
 > **NOTE:** Shared wording with AP and MTR's gates, but each has its own gate and cache.
 
 [End of Procedure]
+
+---
 
 ### Cache Staleness
 
@@ -1207,6 +1287,8 @@ PROC: PFSENSE SSH GATE
 
 ---
 
+---
+
 ## PIHOLE
 
 PIHOLE runs on Pi5 with its own script (`fetch_pihole.sh`), its own SSH gate
@@ -1227,6 +1309,8 @@ and nothing else.
 
 [End of Procedure]
 
+---
+
 ### SSH Gate
 
 <a id="pihole-ssh-gate"></a>**PIHOLE SSH GATE**
@@ -1242,6 +1326,8 @@ and nothing else.
 > pfSense's, the same self-containment as AP and MTR.
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -1273,6 +1359,8 @@ PROC: WEATHER CONFIG MISSING
 
 ---
 
+---
+
 ## SYSTEM
 
 ### Cache Staleness
@@ -1288,6 +1376,8 @@ poll cycles means the refresh loop is dead, not that a fetch failed.
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -1309,6 +1399,8 @@ PROC: PROFILE TOML MISSING
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
@@ -1337,6 +1429,8 @@ PROC: PROFILE TOML MISSING
 ```
 
 [End of Procedure]
+
+---
 
 ### Silent Gaps
 
@@ -1375,6 +1469,8 @@ PROC: VPN TUNNEL PING DEGRADED
 
 [End of Procedure]
 
+---
+
 <a id="vpn-tunnel-ping-degraded"></a>**VPN TUNNEL PING DEGRADED**
 
 `DEGRADED` — `note` starts "tunnel ping failing". `tunnel_latency_ms` is `null` while `health`
@@ -1403,6 +1499,8 @@ PROC: VPN WG STATS DEGRADED
 
 ---
 
+---
+
 ## WEATHER
 
 `current` and `forecast` are tracked as independent fields, the same pattern as AVIATION's
@@ -1421,6 +1519,8 @@ PROC: VPN WG STATS DEGRADED
 ```
 
 [End of Procedure]
+
+---
 
 ### Source Failure
 
@@ -1442,6 +1542,8 @@ PROC: SOLAR WAITING
 
 [End of Procedure]
 
+---
+
 <a id="weather-no-cache"></a>**WEATHER NO CACHE**
 
 `ERROR` — `note:"weather fetch failed; no cache"`. The first fetch failed and there is
@@ -1459,6 +1561,8 @@ PROC: SOLAR WAITING
 ```
 
 [End of Procedure]
+
+---
 
 ---
 
