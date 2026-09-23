@@ -665,9 +665,10 @@ local function draw_leader_line(cr, x, y, w, label, value, font_pt, theme)
   draw_text_right_mid(cr, x + w, y, val, face, font_pt, theme.colors.fg, CAIRO_FONT_WEIGHT_NORMAL)
 end
 
--- DCM idle state: one vertical gauge per eligible enabled domain, equally
--- spaced across the whole box width including its edges (slot centers), so a
--- small count still fills the panel. TTL on top, code below, marker = AGE
+-- DCM idle state: one vertical gauge per eligible enabled domain, spaced
+-- equally across the box width with the two edges counted as gaps too (n gauges
+-- -> n+1 equal gaps), so the first and last gauge sit one gauge-spacing from the
+-- box edge and a small count still fills the panel. TTL on top, code below, marker = AGE
 -- against that TTL (top = fresh).
 local function draw_dcm_idle(cr, panel, box, theme, data)
   local cfg = (theme.dcm or {}).idle or {}
@@ -680,7 +681,7 @@ local function draw_dcm_idle(cr, panel, box, theme, data)
   local marker = tonumber(cfg.marker) or 8
 
   for i, g in ipairs(data.gauges) do
-    local cx = box_x + (box.width * (i - 0.5) / n)
+    local cx = box_x + (box.width * i / (n + 1))
     cx = math.floor((cx / snap) + 0.5) * snap
     draw_text_center_mid(cr, cx, box_y + (tonumber(cfg.label_y) or 24), g.ttl, face, pt, theme.colors.fg,
       CAIRO_FONT_WEIGHT_NORMAL)
