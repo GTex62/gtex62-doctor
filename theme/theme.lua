@@ -191,7 +191,7 @@ theme.dcm = {
     cap_w = 8,
     marker = 8,
     font_pt = 14,
-    snap = 4,          -- gauge x snapped to 4px (a whole device pixel at scale 1.25)
+    snap = 4, -- gauge x snapped to 4px (a whole device pixel at scale 1.25)
   },
   active = {
     content_x = 16,
@@ -203,7 +203,7 @@ theme.dcm = {
     font_pt = 14,
     -- More entries than fit: the list scrolls one whole entry block every
     -- scroll_interval_sec, wrapping (same mechanism as SitRep's alert banner).
-    scroll_interval_sec = 3,
+    scroll_interval_sec = 5,
     bottom_pad = 8,
     proc_prefix = "PROC: ",
   },
@@ -280,7 +280,7 @@ theme.providers = {
 -- version_identity_label() in lua/ui/frame.lua from core.toml/suite.toml;
 -- this table only holds sizing/placement.
 theme.footer = {
-  bottom_inset = 16, -- distance from the frame's bottom edge up to this label's center (sits below the DOC panel border)
+  bottom_inset = 30, -- label center 18px below the DOC panel's bottom edge, mid-gutter (same as SitRep's footer)
   font_pt = 10,
 }
 

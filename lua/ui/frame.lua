@@ -775,7 +775,7 @@ function M.draw(cr, theme, layout, panels, widgets)
   if type(theme) ~= "table" or type(layout) ~= "table" then return end
   widgets = widgets or {}
 
-  local frame = layout.frame or { x = 0, y = 0, width = 1080, height = 648 }
+  local frame = layout.frame or { x = 0, y = 0, width = 1080, height = 664 }
   local scale = resolve_scale(layout)
 
   cairo_save(cr)

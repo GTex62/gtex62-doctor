@@ -14,11 +14,15 @@ local layout = {}
 -- edge gutter at 28px on both sides (1736 = 28 + 3*520 + 2*60 + 28), and
 -- Doctor matches it (1080 = 28 + 1024 + 28) so all suites share the same
 -- chassis-edge-to-panel spacing.
+--
+-- Height is 664, not the nearest-8 648: the bottom gutter (panel bottom to
+-- the frame border's inner edge) is 40px like SitRep's, which is where the
+-- CORE // DOC footer label sits (664 = 40 + 576 + 40 + 8).
 layout.frame = {
   x = 0,
   y = 0,
   width = 1080,
-  height = 648,
+  height = 664,
 }
 
 -- scale_mode: "manual" uses layout.scale directly.
