@@ -666,9 +666,9 @@ local function draw_leader_line(cr, x, y, w, label, value, font_pt, theme)
 end
 
 -- DCM idle state: one vertical gauge per eligible enabled domain, spaced
--- equally across the box width with the two edges counted as gaps too (n gauges
--- -> n+1 equal gaps), so the first and last gauge sit one gauge-spacing from the
--- box edge and a small count still fills the panel. TTL on top, code below, marker = AGE
+-- equally across the box width with the edges counted as gaps too, so a small
+-- count still fills the panel. theme.dcm.idle.edge_gap tunes how large the edge
+-- margin is relative to the gauge-to-gauge gap. TTL on top, code below, marker = AGE
 -- against that TTL (top = fresh).
 local function draw_dcm_idle(cr, panel, box, theme, data)
   local cfg = (theme.dcm or {}).idle or {}
@@ -679,9 +679,14 @@ local function draw_dcm_idle(cr, panel, box, theme, data)
   local top, bottom = tonumber(cfg.line_top) or 40, tonumber(cfg.line_bottom) or 128
   local cap = tonumber(cfg.cap_w) or 8
   local marker = tonumber(cfg.marker) or 8
+  -- edge_gap = edge margin as a multiple of the gauge-to-gauge gap (1.0 =
+  -- equal, 0.5 = half a gap, 0 = flush); the n gauges then span the box width
+  -- as 2*edge + (n-1) gaps.
+  local edge = math.max(0, tonumber(cfg.edge_gap) or 1.0)
+  local gap = box.width / ((2 * edge) + math.max(1, n - 1))
 
   for i, g in ipairs(data.gauges) do
-    local cx = box_x + (box.width * i / (n + 1))
+    local cx = box_x + (edge * gap) + ((i - 1) * gap)
     cx = math.floor((cx / snap) + 0.5) * snap
     draw_text_center_mid(cr, cx, box_y + (tonumber(cfg.label_y) or 24), g.ttl, face, pt, theme.colors.fg,
       CAIRO_FONT_WEIGHT_NORMAL)

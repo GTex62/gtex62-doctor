@@ -192,6 +192,10 @@ theme.dcm = {
     marker = 8,
     font_pt = 14,
     snap = 4, -- gauge x snapped to 4px (a whole device pixel at scale 1.25)
+    -- Gauge spacing knob: the margin between the box edge and the first/last
+    -- gauge, as a multiple of the gap between neighboring gauges. 1.0 = equal
+    -- (n+1 equal gaps), 0.5 = half a gap (the old slot-center spacing), 0 = flush.
+    edge_gap = 1.0,
   },
   active = {
     content_x = 16,
