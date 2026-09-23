@@ -51,6 +51,46 @@ function M.status()
   return CACHE.doc
 end
 
+-- Live ages. status.json's age_sec is frozen at the doctor loop's last run (5s),
+-- so the AGE column and the DCM gauges would step. Each second, one `stat`
+-- reads the mtimes of the cache files behind the duration rows (paths come
+-- from status.json's `cache_file`) and ages are recomputed against the clock.
+-- STATE/NOTE still come from the doctor loop, so for up to one loop a row can
+-- show an AGE past its TTL before its STATE follows.
+local LIVE = { tick = nil, mtimes = {} }
+
+local function live_mtimes(doc)
+  local tick = os.time()
+  if LIVE.tick == tick then return LIVE.mtimes end
+  LIVE.tick = tick
+  LIVE.mtimes = {}
+  local quoted = {}
+  for _, row in pairs((doc and doc.domains) or {}) do
+    if type(row) == "table" and row.enabled and row.age_kind == "duration"
+        and type(row.cache_file) == "string" then
+      quoted[#quoted + 1] = "'" .. row.cache_file:gsub("'", "'\\''") .. "'"
+    end
+  end
+  if #quoted == 0 then return LIVE.mtimes end
+  local h = io.popen("stat -c '%Y %n' -- " .. table.concat(quoted, " ") .. " 2>/dev/null")
+  if h then
+    for line in h:lines() do
+      local m, path = line:match("^(%d+) (.+)$")
+      if m then LIVE.mtimes[path] = tonumber(m) end
+    end
+    h:close()
+  end
+  return LIVE.mtimes
+end
+
+-- Age in seconds for a duration row: live from the file's mtime, falling back
+-- to the provider's own age_sec when the file cannot be stat'ed.
+local function live_age(row, doc)
+  local m = live_mtimes(doc)[row.cache_file or ""]
+  if m then return math.max(0, os.time() - m) end
+  return row.age_sec
+end
+
 local STATE_WORD = {
   nominal = "NOMINAL", warn = "WARN", disabled = "DISABLED", private = "PRIVATE",
   hybrid = "HYBRID", optional = "OPTIONAL", idle = "IDLE", armed = "ARMED", running = "RUNNING",
@@ -61,7 +101,7 @@ local function hms(iso)
 end
 
 -- AGE cell text, per doctor-design.md's AGE column section.
-local function age_cell(row)
+local function age_cell(row, doc)
   if not row.enabled then return "" end
   -- NET/SYSTEM/TIME (1s class) blank; NET's only while the fallback flag is
   -- clear, since a climbing AGE is what confirms the fallback.
@@ -70,7 +110,8 @@ local function age_cell(row)
   if kind == "ratio" then return row.age_ratio or "" end
   if kind == "date" then return row.age_ts or "" end
   if kind == "timestamp" then return hms(row.age_ts) end
-  if type(row.age_sec) == "number" then return tostring(math.floor(row.age_sec)) end
+  local age = live_age(row, doc)
+  if type(age) == "number" then return tostring(math.floor(age)) end
   return ""
 end
 
@@ -104,7 +145,7 @@ function M.providers_panel_data()
           domain = key:upper(),
           state = STATE_WORD[row.state] or tostring(row.state or ""):upper(),
           ttl = ttl_cell(row),
-          age = age_cell(row),
+          age = age_cell(row, doc),
           note = note_cell(row),
           highlight = row.highlight == true,
         }
@@ -198,7 +239,7 @@ function M.dcm_panel_data()
   for _, key in ipairs(doc.domain_order or {}) do
     local row = doc.domains and doc.domains[key]
     if type(row) == "table" and gauge_eligible(row) then
-      local frac = math.max(0, math.min(1, row.age_sec / row.ttl_sec))
+      local frac = math.max(0, math.min(1, (live_age(row, doc) or row.age_sec) / row.ttl_sec))
       gauges[#gauges + 1] = {
         code = GAUGE_CODE[key] or key:sub(1, 3):upper(),
         ttl = tostring(row.ttl_sec),
