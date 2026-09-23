@@ -101,15 +101,19 @@ are listed under [Deliberately Absent](#deliberately-absent).
 - [GENERIC](#generic)
   - [Enablement](#enablement)
     - [PROFILE TOML MISSING](#profile-toml-missing)
+    - [DOMAIN NOT LISTED](#domain-not-listed)
+    - [FALLBACK TTL](#fallback-ttl)
   - [Cache Staleness](#cache-staleness)
     - [PROVIDER STALE](#provider-stale)
   - [Configuration](#configuration)
     - [CONFIG VALUE UNSET](#config-value-unset)
+  - [Source Failure](#source-failure)
+    - [UNRECOGNIZED NOTE](#unrecognized-note)
 - [AIR](#air)
   - [Configuration](#configuration-1)
     - [AIR COORDINATES MISSING](#air-coordinates-missing)
     - [AIR API KEY MISSING](#air-api-key-missing)
-  - [Source Failure](#source-failure)
+  - [Source Failure](#source-failure-1)
     - [AIR NO CACHE](#air-no-cache)
     - [AIR NO TIMESTAMP](#air-no-timestamp)
   - [Silent Gaps](#silent-gaps)
@@ -130,7 +134,7 @@ are listed under [Deliberately Absent](#deliberately-absent).
   - [Enablement](#enablement-1)
     - [ASTRO FALLBACK TTL](#astro-fallback-ttl)
 - [AVIATION](#aviation)
-  - [Source Failure](#source-failure-1)
+  - [Source Failure](#source-failure-2)
     - [AVIATION DEGRADED](#aviation-degraded)
     - [AVIATION NO CACHE](#aviation-no-cache)
 - [CALENDAR](#calendar)
@@ -144,7 +148,7 @@ are listed under [Deliberately Absent](#deliberately-absent).
 - [GITHUB](#github)
   - [Configuration](#configuration-4)
     - [GITHUB REGISTRY EMPTY](#github-registry-empty)
-  - [Source Failure](#source-failure-2)
+  - [Source Failure](#source-failure-3)
     - [GITHUB FETCH FAILING](#github-fetch-failing)
   - [Cache Staleness](#cache-staleness-4)
     - [GITHUB NEVER RUN](#github-never-run)
@@ -158,7 +162,7 @@ are listed under [Deliberately Absent](#deliberately-absent).
 - [MODEM](#modem)
   - [Configuration](#configuration-5)
     - [MODEM PASSWORD NOT SET](#modem-password-not-set)
-  - [Source Failure](#source-failure-3)
+  - [Source Failure](#source-failure-4)
     - [MODEM UNREACHABLE](#modem-unreachable)
     - [MODEM AUTH FAILED](#modem-auth-failed)
   - [Silent Gaps](#silent-gaps-2)
@@ -184,6 +188,8 @@ are listed under [Deliberately Absent](#deliberately-absent).
 - [PFSENSE](#pfsense)
   - [Configuration](#configuration-7)
     - [PFSENSE NO SSH TARGET](#pfsense-no-ssh-target)
+  - [Source Failure](#source-failure-5)
+    - [PFSENSE SUBCACHE DEGRADED](#pfsense-subcache-degraded)
   - [SSH Gate](#ssh-gate-2)
     - [PFSENSE SSH GATE](#pfsense-ssh-gate)
   - [Cache Staleness](#cache-staleness-6)
@@ -211,7 +217,7 @@ are listed under [Deliberately Absent](#deliberately-absent).
 - [WEATHER](#weather)
   - [Configuration](#configuration-10)
     - [WEATHER CONFIG MISSING](#weather-config-missing)
-  - [Source Failure](#source-failure-4)
+  - [Source Failure](#source-failure-6)
     - [WEATHER DEGRADED](#weather-degraded)
     - [WEATHER NO CACHE](#weather-no-cache)
 
@@ -255,6 +261,116 @@ don't are listed below.
 > FALLBACK TTL). ORB is not confirmed either way (PROC: ORB FALLBACK TTL). AP has no
 > missing-profile path at all. GITHUB proceeds on in-script defaults, harmlessly. MTR reads a
 > missing profile as `state:"disabled"`, so it shows DISABLED, not `ERROR`.
+
+[End of Procedure]
+
+---
+
+<a id="domain-not-listed"></a>**DOMAIN NOT LISTED**
+
+**Indications:** a VPN, AP, MODEM, ALERTS, MTR or PIHOLE row shows WARN / MISSING or STALE while its `core.toml [providers]` flag is `true`; DCM entry reads "`<DOMAIN>` is enabled in `core.toml` but not listed in `[domains]` of `suites/doctor.toml` — add it, or the launcher never starts it."
+
+`MISSING` or `STALE` — the flag is on but the cache is absent or old, and the launching
+suite's `[domains]` list omits the domain. Those six domains are dual-gated: the launcher
+starts a fetch loop only when the `core.toml` flag is `true` **and** the suite lists the
+domain, so a domain the suite omits never gets one. Nobody turned it off, which is why the
+row is not DISABLED. It keeps whatever STATE and NOTE the cache gives it (WARN, `MISSING` or
+`STALE`); only the cause changes.
+
+● IF Doctor should poll the domain:
+
+```text
+-EDIT FILE......~/.config/gtex62-core/suites/doctor.toml, [domains]
+-ADD DOMAIN.............................to `required` or `optional`
+-RESTART SUITE.....................launcher reads [domains] once, at startup
+```
+
+● IF Doctor should not poll it and another suite's launcher already keeps its cache fresh:
+
+```text
+-NO ACTION..................the row is NOMINAL while that cache is fresh
+```
+
+● IF the domain is not wanted at all:
+
+```text
+-SET FLAG.............core.toml [providers] <domain> = false, then restart
+```
+
+> **CAUTION:** Edit the installed `suites/doctor.toml` under the runtime root, not
+> `examples/runtime/suites/doctor.toml.example`. Bootstrap skips a file that already exists
+> (`skip  <path>`), so a change to the example never reaches an installed runtime.
+>
+> **NOTE:** Doctor can only read its own launching suite's list (`suites/doctor.toml`). It
+> has no view of which domains any other suite's launcher started.
+>
+> **NOTE:** Listing a domain makes a Doctor launch start that provider's poller, with the
+> same SSH and scrape load as any other suite that lists it.
+
+```text
+PROC: PROVIDER STALE
+```
+
+[End of Procedure]
+
+---
+
+<a id="fallback-ttl"></a>**FALLBACK TTL**
+
+**Indications:** a row shows `MISSING` — any domain except NET, ORB and ASTRO, which have their own procedures; the TTL cell reads the intended value while the launcher runs the domain on its default; DCM entry reads "`<DOMAIN>` profile TOML has no `<key>` — running on the launcher's default cadence, not the configured one."
+
+`MISSING` — the domain's profile TOML exists but lacks the key the launcher parses its TTL
+from. `bin/gtex62-core-launch` reads that key with `awk`; an absent key returns empty and the
+launcher's bash default (`<DOMAIN>_TTL="${<DOMAIN>_TTL:-N}"`) silently takes over the
+`refresh_loop` cadence. `status.json` still reports `state:"ok"` and nothing else notices.
+Doctor detects it by reading the profile, and shows the *intended* TTL beside the flag
+(never the fallback), so the TTL cell alone cannot confirm the real cadence.
+
+| Domain | Key the launcher parses | Launcher default | Shipped example |
+| --- | --- | --- | --- |
+| AIR | `[cache] ttl_sec` | 900s | 900 |
+| AVIATION | `[cache] metar_ttl_sec`, `taf_ttl_sec` | 600s | 600 |
+| CALENDAR | `[events] cache_ttl_sec` (the TTL Doctor reports) | — | 86400 |
+| MODEM | `cache_ttl_sec` | 300s | 300 |
+| MTR | `cache_ttl_sec` | 15s | 15 |
+| NETWORK | `[cache] refresh_sec` | 5s | 5 |
+| PFSENSE | `cache_ttl_sec` | 5s | 1 |
+| PIHOLE | `[pihole] cache_ttl_sec` | 300s | 60 |
+| SOLAR | `[cache] refresh_sec` | 300s | *(none)* |
+| SYSTEM | `[cache] refresh_sec` | 1s | 1 |
+| TIME | `[cache] refresh_sec` | 1s | 1 |
+| VPN | `cache_ttl_sec` | 10s | 10 |
+| WEATHER | `[request] cache_ttl_sec` | 300s | 300 |
+
+● IF the fetch script reports `state:"error"`, `note:"missing profile toml"` — the file is
+absent, not incomplete: this is not the procedure.
+
+```text
+PROC: PROFILE TOML MISSING
+```
+
+● IF the profile exists but lacks the key:
+
+```text
+-ADD KEY.............................the key above, shipped-example value
+-RESTART SUITE......................launcher reads TTLs once, at startup
+```
+
+> **CAUTION:** Bootstrap will not fix this. It skips a file that already exists
+> (`skip  <path>`), and `--force` overwrites the whole profile, discarding local edits.
+>
+> **CAUTION:** The restart is not optional. The launcher parses each TTL once, at startup,
+> and passes it to `refresh_loop` for the life of the process. A repaired profile does not
+> change a running loop.
+>
+> **NOTE:** SOLAR's shipped example has no `[cache]` section at all, so this flag is raised on
+> a fresh bootstrap too. There is no file to restore from: add `[cache] refresh_sec` by hand.
+
+```text
+PROC: NET FALLBACK TTL
+PROC: ORB FALLBACK TTL
+PROC: ASTRO FALLBACK TTL
+```
 
 [End of Procedure]
 
@@ -311,6 +427,44 @@ threshold.
 
 > **NOTE:** A config-completeness condition has no row NOTE. Whether DCM raises an entry for
 > one is an open question in `doctor-design.md` (Open Questions, DCM active-state details).
+
+[End of Procedure]
+
+---
+
+### Source Failure
+
+<a id="unrecognized-note"></a>**UNRECOGNIZED NOTE**
+
+**Indications:** any row shows WARN with `ERROR`, `DEGRADED`, `PARTIAL` or `WAITING` and the provider's own `note` matches no condition Doctor knows; DCM entry reads "`<DOMAIN>` reports `<TAG>`: `<the provider's note, verbatim>`" — the generic fallback entry.
+
+The provider reported a non-ok `state` and its `note` matches no known condition, so no
+domain procedure applies. Typically a failure path added to a fetch script after the design
+pass, or a note whose wording changed. The row is still WARN and highlighted: the provider's
+own `state` is trustworthy, only the cause is unmapped.
+
+```text
+-READ NOTE.............shared/<domain>/<profile>/status.json, `note`
+-FIND WRITER.......................providers/<domain>/, where it is written
+```
+
+● IF the note names a fixable cause (a credential, a path, a missing tool):
+
+```text
+-FIX CAUSE........................the row clears on the next fetch cycle
+```
+
+● IF the condition is real and recurring:
+
+```text
+-RECORD CONDITION......doctor-missing-conditions.md, then doctor-design.md's Actions table
+-ADD PROCEDURE.......................this handbook, titled `<DOMAIN> <CONDITION>`
+-ADD MATCH...............providers/doctor/fetch_doctor.sh, the note needle
+```
+
+> **NOTE:** Every domain-specific procedure keys off the same `note` text. This one exists
+> so that an unmapped note still raises a DCM entry instead of a WARN row with nothing
+> to read.
 
 [End of Procedure]
 
@@ -1190,6 +1344,7 @@ this project's `CLAUDE.md`.
 ```text
 PROC: ORB FALLBACK TTL
 PROC: ASTRO FALLBACK TTL
+PROC: FALLBACK TTL
 PROC: NET NOT RUNNING
 ```
 
@@ -1341,6 +1496,56 @@ live profile).
 
 ---
 
+### Source Failure
+
+<a id="pfsense-subcache-degraded"></a>**PFSENSE SUBCACHE DEGRADED**
+
+**Indications:** PFSENSE row shows WARN / DEGRADED (or `ERROR`, `PARTIAL`, `WAITING`) while the sub-caches are fresh; DCM entry names the sub-cache and its own note — for example "`router`: ssh gate tripped". WARN overrides HYBRID.
+
+`DEGRADED` — an *enabled* sub-cache wrote its own non-ok `state` while its cache is still
+fresh. Different from PFSENSE SUBCACHE STALE, where the cache is old. Each sub-cache has its
+own script and its own SSH gate, so one can fail while the others are healthy:
+
+| Sub-cache | Gate state directory |
+| --- | --- |
+| `status` (also arp, leases) | `runtime/pfsense` |
+| `router` | `runtime/router` |
+| `pfblockerng` | `runtime/pfblockerng` |
+| `ifaces` | `runtime/pfsense_ifaces` |
+
+This entry covers `router`, `pfblockerng` and `ifaces`. `status` (and arp and leases, which
+mirror it) raise PFSENSE SSH GATE or PFSENSE NO SSH TARGET directly.
+
+```text
+-IDENTIFY SUB-CACHE..............router, pfblockerng or ifaces, from DCM
+-READ NOTE.....shared/pfsense/<profile>/<sub-cache>.json, `note`
+```
+
+● IF the note is `ssh gate tripped` or `ssh failed`:
+
+```text
+PROC: PFSENSE SSH GATE
+```
+
+● IF the note is `no ssh_target configured`:
+
+```text
+PROC: PFSENSE NO SSH TARGET
+```
+
+● IF the note is anything else:
+
+```text
+PROC: UNRECOGNIZED NOTE
+```
+
+> **NOTE:** Clearing one sub-cache's gate does not clear the others: they share the SSH
+> alias and credentials but not the gate.
+
+[End of Procedure]
+
+---
+
 ### SSH Gate
 
 <a id="pfsense-ssh-gate"></a>**PFSENSE SSH GATE**
@@ -1381,6 +1586,7 @@ so identify which one.
 
 ```text
 PROC: PFSENSE SSH GATE
+PROC: PFSENSE SUBCACHE DEGRADED
 ```
 
 [End of Procedure]
@@ -1732,6 +1938,8 @@ titles exactly.
 - [CONFIG VALUE UNSET](#config-value-unset)
 - [CONNECT SPEEDTEST FAILING](#connect-speedtest-failing)
 - [CONNECT SPEEDTEST STALE](#connect-speedtest-stale)
+- [DOMAIN NOT LISTED](#domain-not-listed)
+- [FALLBACK TTL](#fallback-ttl)
 - [GITHUB FETCH FAILING](#github-fetch-failing)
 - [GITHUB NEVER RUN](#github-never-run)
 - [GITHUB REFRESH](#github-refresh)
@@ -1752,6 +1960,7 @@ titles exactly.
 - [ORB FALLBACK TTL](#orb-fallback-ttl)
 - [PFSENSE NO SSH TARGET](#pfsense-no-ssh-target)
 - [PFSENSE SSH GATE](#pfsense-ssh-gate)
+- [PFSENSE SUBCACHE DEGRADED](#pfsense-subcache-degraded)
 - [PFSENSE SUBCACHE STALE](#pfsense-subcache-stale)
 - [PIHOLE NO SSH TARGET](#pihole-no-ssh-target)
 - [PIHOLE SSH GATE](#pihole-ssh-gate)
@@ -1760,6 +1969,7 @@ titles exactly.
 - [SOLAR WAITING](#solar-waiting)
 - [SYSTEM NOT RUNNING](#system-not-running)
 - [TIME NOT RUNNING](#time-not-running)
+- [UNRECOGNIZED NOTE](#unrecognized-note)
 - [VPN PIACTL MISSING](#vpn-piactl-missing)
 - [VPN TUNNEL PING DEGRADED](#vpn-tunnel-ping-degraded)
 - [VPN WG STATS DEGRADED](#vpn-wg-stats-degraded)
