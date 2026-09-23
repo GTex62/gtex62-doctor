@@ -125,11 +125,7 @@ end
 -- the row (the full list is DCM's job).
 local function note_cell(row)
   if not row.enabled or not row.note then return "" end
-  local actionable = 0
-  for _, tag in ipairs(row.notes or {}) do
-    if tag ~= "OPTIONAL" then actionable = actionable + 1 end
-  end
-  return row.note .. ((actionable > 1) and "+" or "")
+  return row.note .. ((#(row.notes or {}) > 1) and "+" or "")
 end
 
 -- PROVIDERS rows: alphabetical, one per domain in status.json's

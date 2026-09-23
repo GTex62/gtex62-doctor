@@ -52,7 +52,6 @@ TITLE**. Categories used:
 | SSH Gate | The domain's own SSH gate tripped |
 | Dependency | Something owned by another domain or by the filesystem is what's missing |
 | Refresh Deadline | A time-limited copy obligation (GITHUB only) |
-| Informational | Not a fault — shown for completeness |
 
 **Indications.** Each procedure opens with an **Indications:** line saying what a reader sees that leads there: the row's STATE / NOTE, and the DCM entry text. Both come from the Actions / Remediation table in `doctor-design.md`, not from new wording. The DCM text is quoted from the table's action text — the fixed remediation DCM shows — cut at the first clause where the table text runs on. Every actionable NOTE highlights its row, raises a DCM entry and moves the header to `CHECK ACTIONS (N)`. GITHUB's STATE is hardcoded PRIVATE, so its rows show PRIVATE beside the NOTE, and an ORB or ASTRO fallback row reads NOMINAL beside MISSING — STATE follows AGE and the provider's own state, never a Doctor-derived flag. Where the design does not establish a DCM entry (config-completeness conditions), the line says so rather than supplying one.
 
@@ -64,7 +63,7 @@ TITLE**. Categories used:
 | --- | --- | --- |
 | 1 | `ERROR`, `DEGRADED` (and `PARTIAL`, the provider-reported fault state AIR alone uses) | A provider-reported fault is driving the row |
 | 2 | `MISSING`, `STALE` (and `WAITING`, a wait on another domain) | The cache is absent or stale, or a domain is waiting on another |
-| 3 | Informational: config-completeness alerts, `OPTIONAL`, and the deadline-not-yet-broken case (GITHUB `REFRESH`) | Nothing is broken yet, or nothing is broken at all |
+| 3 | Informational: config-completeness alerts, and the deadline-not-yet-broken case (GITHUB `REFRESH`) | Nothing is broken yet, or nothing is broken at all |
 
 **Tier and CAUTION are independent axes.** Tier marks current urgency — how much is broken right now. CAUTION marks consequence — a risk in the fix, or in ignoring the condition. A procedure can carry a serious CAUTION and still be low-urgency today, and a CAUTION never changes a procedure's tier. GITHUB `REFRESH` is the example: it is deliberately a softer signal than `STALE` — nothing is broken and the 4-day buffer is still open — so it is Tier 3, yet it carries a CAUTION because ignoring it past the 14-day window loses data for good. That is the two axes disagreeing on purpose, not a contradiction or an exception.
 
@@ -157,8 +156,6 @@ are listed under [Deliberately Absent](#deliberately-absent).
 - [MEDIA](#media)
   - [Dependency](#dependency)
     - [MEDIA LOCAL DIR UNREACHABLE](#media-local-dir-unreachable)
-  - [Informational](#informational)
-    - [MEDIA GENIUS NOT CONFIGURED](#media-genius-not-configured)
 - [MODEM](#modem)
   - [Configuration](#configuration-5)
     - [MODEM PASSWORD NOT SET](#modem-password-not-set)
@@ -1041,29 +1038,6 @@ a symlink to network storage; the provider only needs it configured and reachabl
 
 ---
 
-### Informational
-
-<a id="media-genius-not-configured"></a>**MEDIA GENIUS NOT CONFIGURED**
-
-**Indications:** MEDIA row NOTE reads OPTIONAL (`genius_token` unset) — informational, not actionable: the row does not highlight and DCM raises no entry. The design's informational text is "Genius API not configured — optional".
-
-`OPTIONAL` — `genius_token` is unset. Informational, not a fault: it does not highlight the
-row and does not raise a DCM entry. Genius is the one API-keyed lyrics source; `lrclib` and
-`lyrics_ovh` need no key.
-
-```text
--ACTION....................................................NONE REQUIRED
-```
-
-> **NOTE:** This is a config-completeness check, not a runtime health check. Doctor tests
-> whether `genius_token` is set or empty — presence only, never the token itself.
-
-[End of Procedure]
-
----
-
----
-
 ## MODEM
 
 MODEM's link to pfSense is a network path only: it reaches the modem's admin UI at
@@ -1906,6 +1880,9 @@ Conditions that look like they should have a procedure and do not:
 - **DISABLED, any domain.** Administratively off, not broken. Every DISABLED row collapses to
   the widget footer pointer, `TO ENABLE PROVIDERS, SEE README § Provider Toggles`, and gets
   no per-domain text.
+- **MEDIA's unset Genius token.** It no longer shows an `OPTIONAL` NOTE — it flagged permanently
+  for a feature that is inert today. The fact stays in `status.json`'s MEDIA detail snapshot,
+  so there is nothing to look up.
 - **MEDIA's lyrics bugs** — the stale-lyrics bug and the 12-hour-miss bug. These are tracked
   as in-tree bug docs under `gtex62-core/docs/` (`2026-09-20-lyrics-*.md`), a different kind
   of document from a QRH procedure.
@@ -1941,7 +1918,6 @@ titles exactly.
 - [GITHUB NEVER RUN](#github-never-run)
 - [GITHUB REFRESH](#github-refresh)
 - [GITHUB REGISTRY EMPTY](#github-registry-empty)
-- [MEDIA GENIUS NOT CONFIGURED](#media-genius-not-configured)
 - [MEDIA LOCAL DIR UNREACHABLE](#media-local-dir-unreachable)
 - [MODEM AUTH FAILED](#modem-auth-failed)
 - [MODEM CONN DEGRADED](#modem-conn-degraded)
