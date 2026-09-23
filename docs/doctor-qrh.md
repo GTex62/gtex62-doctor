@@ -336,7 +336,7 @@ Doctor detects it by reading the profile, and shows the *intended* TTL beside th
 | NETWORK | `[cache] refresh_sec` | 5s | 5 |
 | PFSENSE | `cache_ttl_sec` | 5s | 1 |
 | PIHOLE | `[pihole] cache_ttl_sec` | 300s | 60 |
-| SOLAR | `[cache] refresh_sec` | 300s | *(none)* |
+| SOLAR | `[cache] refresh_sec` | 300s | 300 |
 | SYSTEM | `[cache] refresh_sec` | 1s | 1 |
 | TIME | `[cache] refresh_sec` | 1s | 1 |
 | VPN | `cache_ttl_sec` | 10s | 10 |
@@ -362,9 +362,6 @@ PROC: PROFILE TOML MISSING
 > **CAUTION:** The restart is not optional. The launcher parses each TTL once, at startup,
 > and passes it to `refresh_loop` for the life of the process. A repaired profile does not
 > change a running loop.
->
-> **NOTE:** SOLAR's shipped example has no `[cache]` section at all, so this flag is raised on
-> a fresh bootstrap too. There is no file to restore from: add `[cache] refresh_sec` by hand.
 
 ```text
 PROC: NET FALLBACK TTL
