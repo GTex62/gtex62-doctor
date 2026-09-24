@@ -197,14 +197,11 @@ local GAUGE_CODE = {
 }
 
 -- A domain gets a gauge only if its AGE is a duration against a single TTL
--- and that TTL meaningfully exceeds Conky's own refresh cadence. 5s
--- (NETWORK) is confirmed too close to the flicker zone; the smallest
--- eligible launcher default is VPN's 10s. A DISABLED domain gets none.
-local GAUGE_MIN_TTL = 10
-
+-- and that TTL is not "fast track" (under 10s, decided once in the provider: the
+-- same flag that blanks the AGE cell). A DISABLED domain gets none.
 local function gauge_eligible(row)
   return row.enabled == true and row.state ~= "disabled" and row.age_kind == "duration"
-      and row.fast_track ~= true and type(row.ttl_sec) == "number" and row.ttl_sec >= GAUGE_MIN_TTL
+      and row.fast_track ~= true and type(row.ttl_sec) == "number"
       and type(row.age_sec) == "number"
 end
 

@@ -128,8 +128,8 @@ launcher's fallback cadence because its profile lacks the TTL key.
 
 **TTL and AGE** — TTL is plain seconds, or `ON DEMAND` (CONNECT), `TIMER`
 (GITHUB), `WRITE` (MEDIA), `TRIGGER` (MTR) or `VARIES` (PFSENSE). AGE is seconds
-for fast domains and a `HH:MM:SSZ` (UTC) timestamp for the rest. NET, SYSTEM and
-TIME (1s TTL) leave AGE blank.
+for fast domains and a `HH:MM:SSZ` (UTC) timestamp for the rest. Any duration row with a TTL
+under 10s (NET, SYSTEM, TIME, NETWORK) leaves AGE blank, since it would only flicker.
 
 **DCM entries** name a procedure in the Quick Reference Handbook
 ([`docs/doctor-qrh.md`](docs/doctor-qrh.md)); the fixed one-line action shown on
