@@ -47,6 +47,10 @@ Doctor").
 
 *`linen` palette, healthy: the DCM idle gauges beside the provider table.*
 
+![gtex62-doctor — DCM takeover with two active conditions](screenshots/doc-dcm-linen.png)
+
+*DCM takeover: each active condition shows its action line and `PROC:` reference.*
+
 ## Panels
 
 | Panel | Content |
