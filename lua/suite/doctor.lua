@@ -94,6 +94,7 @@ end
 local STATE_WORD = {
   nominal = "NOMINAL", warn = "WARN", disabled = "DISABLED", private = "PRIVATE",
   hybrid = "HYBRID", optional = "OPTIONAL", idle = "IDLE", armed = "ARMED", running = "RUNNING",
+  starting = "STARTING",
 }
 
 local function hms(iso)
@@ -198,9 +199,11 @@ local GAUGE_CODE = {
 
 -- A domain gets a gauge only if its AGE is a duration against a single TTL
 -- and that TTL is not "fast track" (under 10s, decided once in the provider: the
--- same flag that blanks the AGE cell). A DISABLED domain gets none.
+-- same flag that blanks the AGE cell). A DISABLED domain gets none, nor does a
+-- STARTING one: its AGE is left over from the last session and means nothing.
 local function gauge_eligible(row)
-  return row.enabled == true and row.state ~= "disabled" and row.age_kind == "duration"
+  return row.enabled == true and row.state ~= "disabled" and row.state ~= "starting"
+      and row.age_kind == "duration"
       and row.fast_track ~= true and type(row.ttl_sec) == "number"
       and type(row.age_sec) == "number"
 end
