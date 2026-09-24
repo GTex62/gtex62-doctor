@@ -18,6 +18,7 @@ the full design.
 ## Table of Contents
 
 - [Divergence from other suites](#divergence-from-other-suites)
+- [Screenshots](#screenshots)
 - [Panels](#panels)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
@@ -39,6 +40,12 @@ conditions like a gateway outage); it covers provider health and
 config-completeness, and replaces the need for each suite to hand-maintain a
 Doctor script (see the design doc's "Core Distinction: Suite Doctors vs. Core
 Doctor").
+
+## Screenshots
+
+![gtex62-doctor — linen palette, all providers healthy](screenshots/doc-full-healthy-linen.png)
+
+*`linen` palette, healthy: the DCM idle gauges beside the provider table.*
 
 ## Panels
 
@@ -115,7 +122,11 @@ double-fetching.
 ## Reading the Widget
 
 **STATE** — `NOMINAL` (fresh, within TTL), `WARN` (stale, or the provider
-reports a non-ok state), `DISABLED` (turned off by design), `PRIVATE` (GITHUB,
+reports a non-ok state), `STARTING` (cold-start grace: the launcher began
+moments ago and this domain's cache predates it, so it is neither verified
+fresh nor a problem; it carries no NOTE, highlight, DCM entry or gauge, and
+ends at the domain's first fetch or after a window of its TTL plus 30s, capped
+at 60s, whichever comes first), `DISABLED` (turned off by design), `PRIVATE` (GITHUB,
 maintainer-only), `HYBRID` (some, not all, of PFSENSE's four sub-flags
 enabled, everything healthy), and MTR's own `IDLE` / `ARMED` / `RUNNING`.
 A row goes WARN when its age passes its TTL by more than 5s.
