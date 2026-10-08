@@ -1,6 +1,6 @@
 suite_id = "doctor"
 name = "gtex62-doctor"
-version = "0.1.0"
+version = "0.2.0"
 core_requirement = ">=1.0,<2.0"
 
 [repo]
