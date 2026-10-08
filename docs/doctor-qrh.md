@@ -61,7 +61,7 @@ TITLE**. Categories used:
 
 | Tier | Tag / kind | Meaning |
 | --- | --- | --- |
-| 1 | `ERROR`, `DEGRADED` (and `PARTIAL`, the provider-reported fault state AIR alone uses) | A provider-reported fault is driving the row |
+| 1 | `ERROR`, `DEGRADED` (and `PARTIAL`, the provider-reported fault state only AIR and AIRGRADIENT use) | A provider-reported fault is driving the row |
 | 2 | `MISSING`, `STALE` (and `WAITING`, a wait on another domain) | The cache is absent or stale, or a domain is waiting on another |
 | 3 | Informational: config-completeness alerts, and the deadline-not-yet-broken case (GITHUB `REFRESH`) | Nothing is broken yet, or nothing is broken at all |
 
@@ -125,8 +125,10 @@ are listed under [Deliberately Absent](#deliberately-absent).
     - [AIRGRADIENT UNREACHABLE](#airgradient-unreachable)
   - [Silent Gaps](#silent-gaps-1)
     - [AIRGRADIENT FIELDS MISSING](#airgradient-fields-missing)
-- [ALERTS](#alerts)
   - [Cache Staleness](#cache-staleness-1)
+    - [AIRGRADIENT NOT RUNNING](#airgradient-not-running)
+- [ALERTS](#alerts)
+  - [Cache Staleness](#cache-staleness-2)
     - [ALERTS NOT RUNNING](#alerts-not-running)
 - [AP](#ap)
   - [Configuration](#configuration-3)
@@ -144,19 +146,19 @@ are listed under [Deliberately Absent](#deliberately-absent).
     - [AVIATION DEGRADED](#aviation-degraded)
     - [AVIATION NO CACHE](#aviation-no-cache)
 - [CALENDAR](#calendar)
-  - [Cache Staleness](#cache-staleness-2)
+  - [Cache Staleness](#cache-staleness-3)
     - [CALENDAR NEVER RUN](#calendar-never-run)
 - [CONNECT](#connect)
   - [Silent Gaps](#silent-gaps-2)
     - [CONNECT SPEEDTEST FAILING](#connect-speedtest-failing)
-  - [Cache Staleness](#cache-staleness-3)
+  - [Cache Staleness](#cache-staleness-4)
     - [CONNECT SPEEDTEST STALE](#connect-speedtest-stale)
 - [GITHUB](#github)
   - [Configuration](#configuration-5)
     - [GITHUB REGISTRY EMPTY](#github-registry-empty)
   - [Source Failure](#source-failure-4)
     - [GITHUB FETCH FAILING](#github-fetch-failing)
-  - [Cache Staleness](#cache-staleness-4)
+  - [Cache Staleness](#cache-staleness-5)
     - [GITHUB NEVER RUN](#github-never-run)
   - [Refresh Deadline](#refresh-deadline)
     - [GITHUB REFRESH](#github-refresh)
@@ -181,7 +183,7 @@ are listed under [Deliberately Absent](#deliberately-absent).
 - [NET](#net)
   - [Enablement](#enablement-2)
     - [NET FALLBACK TTL](#net-fallback-ttl)
-  - [Cache Staleness](#cache-staleness-5)
+  - [Cache Staleness](#cache-staleness-6)
     - [NET NOT RUNNING](#net-not-running)
 - [NETWORK](#network)
   - [Silent Gaps](#silent-gaps-4)
@@ -196,7 +198,7 @@ are listed under [Deliberately Absent](#deliberately-absent).
     - [PFSENSE SUBCACHE DEGRADED](#pfsense-subcache-degraded)
   - [SSH Gate](#ssh-gate-2)
     - [PFSENSE SSH GATE](#pfsense-ssh-gate)
-  - [Cache Staleness](#cache-staleness-6)
+  - [Cache Staleness](#cache-staleness-7)
     - [PFSENSE SUBCACHE STALE](#pfsense-subcache-stale)
 - [PIHOLE](#pihole)
   - [Configuration](#configuration-9)
@@ -207,10 +209,10 @@ are listed under [Deliberately Absent](#deliberately-absent).
   - [Dependency](#dependency-1)
     - [SOLAR WAITING](#solar-waiting)
 - [SYSTEM](#system)
-  - [Cache Staleness](#cache-staleness-7)
+  - [Cache Staleness](#cache-staleness-8)
     - [SYSTEM NOT RUNNING](#system-not-running)
 - [TIME](#time)
-  - [Cache Staleness](#cache-staleness-8)
+  - [Cache Staleness](#cache-staleness-9)
     - [TIME NOT RUNNING](#time-not-running)
 - [VPN](#vpn)
   - [Configuration](#configuration-10)
@@ -272,10 +274,10 @@ don't are listed below.
 
 <a id="domain-not-listed"></a>**DOMAIN NOT LISTED**
 
-**Indications:** a VPN, AP, MODEM, ALERTS, MTR or PIHOLE row shows WARN / MISSING or STALE while its `core.toml [providers]` flag is `true`; DCM entry reads "`<DOMAIN>` is enabled in `core.toml` but not listed in `[domains]` of `suites/doctor.toml` — add it, or the launcher never starts it."
+**Indications:** a VPN, AP, MODEM, ALERTS, MTR, PIHOLE or AIRGRADIENT row shows WARN / MISSING or STALE while its `core.toml [providers]` flag is `true`; DCM entry reads "`<DOMAIN>` is enabled in `core.toml` but not listed in `[domains]` of `suites/doctor.toml` — add it, or the launcher never starts it."
 
 `MISSING` or `STALE` — the flag is on but the cache is absent or old, and the launching
-suite's `[domains]` list omits the domain. Those six domains are dual-gated: the launcher
+suite's `[domains]` list omits the domain. Those seven domains are dual-gated: the launcher
 starts a fetch loop only when the `core.toml` flag is `true` **and** the suite lists the
 domain, so a domain the suite omits never gets one. Nobody turned it off, which is why the
 row is not DISABLED. It keeps whatever STATE and NOTE the cache gives it (WARN, `MISSING` or
@@ -395,9 +397,11 @@ PROC: ASTRO FALLBACK TTL
 > **NOTE:** Several domains have a better answer than this one. ALERTS has no API, so "check
 > the API key" would be wrong for it. CALENDAR reads local files only. NET, SYSTEM and TIME
 > at a 1s TTL mean a dead loop. PFSENSE is a family of sub-caches. GITHUB never uses `STALE`.
-> Use the domain's own procedure.
+> AIRGRADIENT is a keyless LAN device and a stale file means its loop stopped. Use the domain's own
+> procedure.
 
 ```text
+PROC: AIRGRADIENT NOT RUNNING
 PROC: ALERTS NOT RUNNING
 PROC: CALENDAR NEVER RUN
 PROC: NET NOT RUNNING
@@ -477,7 +481,7 @@ own `state` is trustworthy, only the cause is unmapped.
 
 AIR reads two AQI sources — OpenWeather Air Pollution and AirNow — each with its own validity
 flag in `current.json` (`openweather.valid`, `airnow.valid`). The row's own `partial` state
-is AIR-only.
+is AIR's, and AIRGRADIENT's: here it means no provider timestamp.
 
 ### Configuration
 
@@ -615,7 +619,7 @@ inside the file stays at the last good reading.
 shipped template leaves it blank on purpose, because the address is yours.
 
 ```text
--SET [DEVICE].HOST................................airgradient profile TOML
+-SET [device].host..............................airgradient profile TOML
 ```
 
 ● IF `note` is `"missing profile toml"`:
@@ -641,13 +645,14 @@ which). The row keeps the last readings and the last verdict, and OSA shows `AG 
 last good reading is three minutes old.
 
 ```text
--CHECK DEVICE REACHABILITY.................................../MEASURES/CURRENT
+-CHECK DEVICE REACHABILITY............................./measures/current
 ```
 
 > **NOTE:** From the machine running Conky, `curl http://<host>/measures/current` shows the same
-> thing the provider sees. The device is on the IoT VLAN with a static reservation, so a timeout is
-> usually power, Wi-Fi, or the reservation/VLAN rather than anything in core. A `degraded` row that
-> clears on its own within a poll or two is a transient and needs no action.
+> thing the provider sees. A timeout is usually the device's power or Wi-Fi, or its address having
+> changed (a DHCP lease that moved, a different VLAN), rather than anything in core; a static
+> reservation avoids the last one. A `degraded` row that clears on its own within a poll or two is a
+> transient and needs no action.
 
 [End of Procedure]
 
@@ -664,15 +669,40 @@ more of the compensated readings (`pm25_ugm3`, `temp_f`, `humidity_pct`) have ha
 than the carry window (ten minutes by default). Firmware 3.7.0 drops these fields together in about
 one response in five, which the provider rides out by carrying the last values forward; this state
 means that stopped being enough. With them missing, the advisor skips every rule that needs
-temperature, humidity or PM2.5; CO2, VOC, the hazard rule and the humidity-free rules still run.
+temperature, humidity or PM2.5 (the humidity trip, the dew-point comparisons, free cooling and the
+indoor PM2.5 trigger); the CO2 and VOC rules and the outdoor-air hazard rule still run.
 
 ```text
--CHECK DEVICE, FIRMWARE.........................POWER-CYCLE THE UNIT
+-CHECK DEVICE, FIRMWARE.............................POWER-CYCLE THE UNIT
 ```
 
 > **NOTE:** The row clears by itself on the first response that carries the fields again. It is not
 > raised in the first ten minutes after the provider starts, because there is nothing to carry yet
 > and a dropped response is normal.
+
+[End of Procedure]
+
+---
+
+### Cache Staleness
+
+<a id="airgradient-not-running"></a>**AIRGRADIENT NOT RUNNING**
+
+**Indications:** AIRGRADIENT row shows WARN / STALE (missing or stale `status.json`, `state` still `ok`); DCM entry reads "AirGradient provider isn't running — check the refresh loop".
+
+`STALE` — `status.json` is missing or past its TTL (30s by default) with `state:"ok"`. The provider
+rewrites the file on every run, including failed ones, so stale or missing means the script did not
+run: the refresh loop is not alive, the launching suite never started it, or its cache directory is
+unwritable.
+
+```text
+-CHECK REFRESH_LOOP................................................ALIVE
+```
+
+> **NOTE:** Not a device, API-key or network problem. AirGradient is a keyless device on your LAN, and a
+> dead or unreachable device leaves the file fresh and reads `DEGRADED` instead (PROC: AIRGRADIENT
+> UNREACHABLE). If the cause is that the launching suite does not list the domain, the row says so
+> (PROC: DOMAIN NOT LISTED).
 
 [End of Procedure]
 
@@ -1991,6 +2021,7 @@ titles exactly.
 - [AIR OPENWEATHER DEGRADED](#air-openweather-degraded)
 - [AIRGRADIENT FIELDS MISSING](#airgradient-fields-missing)
 - [AIRGRADIENT HOST NOT SET](#airgradient-host-not-set)
+- [AIRGRADIENT NOT RUNNING](#airgradient-not-running)
 - [AIRGRADIENT UNREACHABLE](#airgradient-unreachable)
 - [ALERTS NOT RUNNING](#alerts-not-running)
 - [AP NO IPS CONFIGURED](#ap-no-ips-configured)
