@@ -254,8 +254,10 @@ theme.config = {
 -- PROVIDERS Section
 ----------------------------------------------------------------
 -- PROVIDERS box: DOMAIN | STATE | TTL | AGE | NOTE grid, one row per domain
--- plus `reserved_rows` blank rows (the AirGradient row — see
--- doctor-design.md, Panel growth rule), then the shared footer pointer.
+-- plus `reserved_rows` blank rows, then the shared footer pointer. The one row
+-- that was reserved for AirGradient (doctor-design.md, Panel growth rule) is now
+-- its real row, so nothing is reserved; the next domain needs a row here and
+-- matching height in DCM.
 -- col_widths sum to the box's 448px content width. Coordinates relative to
 -- the providers box.
 theme.providers = {
@@ -267,7 +269,7 @@ theme.providers = {
   row_h = 20,
   row_font_pt = 14,
   col_widths = { 88, 88, 88, 96, 88 },
-  reserved_rows = 1,
+  reserved_rows = 0,
   footer = {
     y = 492,
     font_pt = 12,

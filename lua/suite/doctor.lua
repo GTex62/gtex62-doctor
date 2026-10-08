@@ -129,6 +129,9 @@ local function note_cell(row)
   return row.note .. ((#(row.notes or {}) > 1) and "+" or "")
 end
 
+-- DOMAIN cell text where the key is wider than the 88px column ("AIRGRADIENT" is 92px at this size).
+local DOMAIN_LABEL = { airgradient = "AIRGRAD" }
+
 -- PROVIDERS rows: alphabetical, one per domain in status.json's
 -- domain_order. `highlight` is the actionable-NOTE rule, never STATE.
 function M.providers_panel_data()
@@ -139,7 +142,7 @@ function M.providers_panel_data()
       local row = doc.domains and doc.domains[key]
       if type(row) == "table" then
         rows[#rows + 1] = {
-          domain = key:upper(),
+          domain = DOMAIN_LABEL[key] or key:upper(),
           state = STATE_WORD[row.state] or tostring(row.state or ""):upper(),
           ttl = ttl_cell(row),
           age = age_cell(row, doc),
@@ -193,7 +196,7 @@ end
 -- DCM gauge codes: three letters, or the standard abbreviation (AVN); AP and
 -- WX are deliberately two letters (doctor-design.md, Domain codes and legend).
 local GAUGE_CODE = {
-  air = "AIR", alerts = "ALR", ap = "AP", astro = "AST", aviation = "AVN", modem = "MDM",
+  air = "AIR", airgradient = "AGR", alerts = "ALR", ap = "AP", astro = "AST", aviation = "AVN", modem = "MDM",
   orb = "ORB", pihole = "PIH", solar = "SOL", vpn = "VPN", weather = "WX",
 }
 

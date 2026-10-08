@@ -118,36 +118,43 @@ are listed under [Deliberately Absent](#deliberately-absent).
   - [Silent Gaps](#silent-gaps)
     - [AIR OPENWEATHER DEGRADED](#air-openweather-degraded)
     - [AIR AIRNOW DEGRADED](#air-airnow-degraded)
+- [AIRGRADIENT](#airgradient)
+  - [Configuration](#configuration-2)
+    - [AIRGRADIENT HOST NOT SET](#airgradient-host-not-set)
+  - [Source Failure](#source-failure-2)
+    - [AIRGRADIENT UNREACHABLE](#airgradient-unreachable)
+  - [Silent Gaps](#silent-gaps-1)
+    - [AIRGRADIENT FIELDS MISSING](#airgradient-fields-missing)
 - [ALERTS](#alerts)
   - [Cache Staleness](#cache-staleness-1)
     - [ALERTS NOT RUNNING](#alerts-not-running)
 - [AP](#ap)
-  - [Configuration](#configuration-2)
+  - [Configuration](#configuration-3)
     - [AP NO IPS CONFIGURED](#ap-no-ips-configured)
     - [AP PASSWORD FILE MISSING](#ap-password-file-missing)
   - [SSH Gate](#ssh-gate)
     - [AP SSH GATE](#ap-ssh-gate)
 - [ASTRO](#astro)
-  - [Configuration](#configuration-3)
+  - [Configuration](#configuration-4)
     - [ASTRO LOCATION MISSING](#astro-location-missing)
   - [Enablement](#enablement-1)
     - [ASTRO FALLBACK TTL](#astro-fallback-ttl)
 - [AVIATION](#aviation)
-  - [Source Failure](#source-failure-2)
+  - [Source Failure](#source-failure-3)
     - [AVIATION DEGRADED](#aviation-degraded)
     - [AVIATION NO CACHE](#aviation-no-cache)
 - [CALENDAR](#calendar)
   - [Cache Staleness](#cache-staleness-2)
     - [CALENDAR NEVER RUN](#calendar-never-run)
 - [CONNECT](#connect)
-  - [Silent Gaps](#silent-gaps-1)
+  - [Silent Gaps](#silent-gaps-2)
     - [CONNECT SPEEDTEST FAILING](#connect-speedtest-failing)
   - [Cache Staleness](#cache-staleness-3)
     - [CONNECT SPEEDTEST STALE](#connect-speedtest-stale)
 - [GITHUB](#github)
-  - [Configuration](#configuration-4)
+  - [Configuration](#configuration-5)
     - [GITHUB REGISTRY EMPTY](#github-registry-empty)
-  - [Source Failure](#source-failure-3)
+  - [Source Failure](#source-failure-4)
     - [GITHUB FETCH FAILING](#github-fetch-failing)
   - [Cache Staleness](#cache-staleness-4)
     - [GITHUB NEVER RUN](#github-never-run)
@@ -157,17 +164,17 @@ are listed under [Deliberately Absent](#deliberately-absent).
   - [Dependency](#dependency)
     - [MEDIA LOCAL DIR UNREACHABLE](#media-local-dir-unreachable)
 - [MODEM](#modem)
-  - [Configuration](#configuration-5)
+  - [Configuration](#configuration-6)
     - [MODEM PASSWORD NOT SET](#modem-password-not-set)
-  - [Source Failure](#source-failure-4)
+  - [Source Failure](#source-failure-5)
     - [MODEM UNREACHABLE](#modem-unreachable)
     - [MODEM AUTH FAILED](#modem-auth-failed)
-  - [Silent Gaps](#silent-gaps-2)
+  - [Silent Gaps](#silent-gaps-3)
     - [MODEM CONN DEGRADED](#modem-conn-degraded)
     - [MODEM HEADER MAPPING](#modem-header-mapping)
     - [MODEM NO UPSTREAM LOCK](#modem-no-upstream-lock)
 - [MTR](#mtr)
-  - [Configuration](#configuration-6)
+  - [Configuration](#configuration-7)
     - [MTR NO SSH TARGET](#mtr-no-ssh-target)
   - [SSH Gate](#ssh-gate-1)
     - [MTR SSH GATE](#mtr-ssh-gate)
@@ -177,22 +184,22 @@ are listed under [Deliberately Absent](#deliberately-absent).
   - [Cache Staleness](#cache-staleness-5)
     - [NET NOT RUNNING](#net-not-running)
 - [NETWORK](#network)
-  - [Silent Gaps](#silent-gaps-3)
+  - [Silent Gaps](#silent-gaps-4)
     - [NETWORK NULL FIELDS](#network-null-fields)
 - [ORB](#orb)
   - [Enablement](#enablement-3)
     - [ORB FALLBACK TTL](#orb-fallback-ttl)
 - [PFSENSE](#pfsense)
-  - [Configuration](#configuration-7)
+  - [Configuration](#configuration-8)
     - [PFSENSE NO SSH TARGET](#pfsense-no-ssh-target)
-  - [Source Failure](#source-failure-5)
+  - [Source Failure](#source-failure-6)
     - [PFSENSE SUBCACHE DEGRADED](#pfsense-subcache-degraded)
   - [SSH Gate](#ssh-gate-2)
     - [PFSENSE SSH GATE](#pfsense-ssh-gate)
   - [Cache Staleness](#cache-staleness-6)
     - [PFSENSE SUBCACHE STALE](#pfsense-subcache-stale)
 - [PIHOLE](#pihole)
-  - [Configuration](#configuration-8)
+  - [Configuration](#configuration-9)
     - [PIHOLE NO SSH TARGET](#pihole-no-ssh-target)
   - [SSH Gate](#ssh-gate-3)
     - [PIHOLE SSH GATE](#pihole-ssh-gate)
@@ -206,15 +213,15 @@ are listed under [Deliberately Absent](#deliberately-absent).
   - [Cache Staleness](#cache-staleness-8)
     - [TIME NOT RUNNING](#time-not-running)
 - [VPN](#vpn)
-  - [Configuration](#configuration-9)
+  - [Configuration](#configuration-10)
     - [VPN PIACTL MISSING](#vpn-piactl-missing)
-  - [Silent Gaps](#silent-gaps-4)
+  - [Silent Gaps](#silent-gaps-5)
     - [VPN WG STATS DEGRADED](#vpn-wg-stats-degraded)
     - [VPN TUNNEL PING DEGRADED](#vpn-tunnel-ping-degraded)
 - [WEATHER](#weather)
-  - [Configuration](#configuration-10)
+  - [Configuration](#configuration-11)
     - [WEATHER CONFIG MISSING](#weather-config-missing)
-  - [Source Failure](#source-failure-6)
+  - [Source Failure](#source-failure-7)
     - [WEATHER DEGRADED](#weather-degraded)
     - [WEATHER NO CACHE](#weather-no-cache)
 
@@ -586,6 +593,88 @@ PROC: AIR NO TIMESTAMP
 [End of Procedure]
 
 ---
+
+---
+
+## AIRGRADIENT
+
+AIRGRADIENT is the optional indoor air-quality domain: an AirGradient ONE read over its local
+HTTP API, plus the ventilation advisor that turns the readings into the OSA alert line. It is
+dual-gated (the `core.toml` flag and the suite's `[domains]`) and ships off, so most installs
+never see this row. The provider rewrites `status.json` on every run, including failed ones, so a
+dead device never makes the file go stale; the row's `state` is what reports it. `generated_at`
+inside the file stays at the last good reading.
+
+### Configuration
+
+<a id="airgradient-host-not-set"></a>**AIRGRADIENT HOST NOT SET**
+
+**Indications:** AIRGRADIENT row shows WARN / ERROR (`note` starts "device host not configured"); DCM entry reads "AirGradient has no device host — set `[device].host` in the airgradient profile".
+
+`ERROR` — `note` names the exact TOML key: `[device].host` in the airgradient profile is empty. The
+shipped template leaves it blank on purpose, because the address is yours.
+
+```text
+-SET [DEVICE].HOST................................airgradient profile TOML
+```
+
+● IF `note` is `"missing profile toml"`:
+
+```text
+PROC: PROFILE TOML MISSING
+```
+
+[End of Procedure]
+
+---
+
+### Source Failure
+
+<a id="airgradient-unreachable"></a>**AIRGRADIENT UNREACHABLE**
+
+**Indications:** AIRGRADIENT row shows WARN / DEGRADED (`note` starts "device unreachable"); DCM entry reads "AirGradient device unreachable — check device reachability".
+
+`DEGRADED` — `note` starts "device unreachable: `<reason>`". The fetch from
+`http://<host>/measures/current` failed: connection refused or timed out, an HTTP status other
+than 200, a reply that is not JSON, or a reply missing CO2, VOC, NOx or PM readings (the reason says
+which). The row keeps the last readings and the last verdict, and OSA shows `AG STALE` once the
+last good reading is three minutes old.
+
+```text
+-CHECK DEVICE REACHABILITY.................................../MEASURES/CURRENT
+```
+
+> **NOTE:** From the machine running Conky, `curl http://<host>/measures/current` shows the same
+> thing the provider sees. The device is on the IoT VLAN with a static reservation, so a timeout is
+> usually power, Wi-Fi, or the reservation/VLAN rather than anything in core. A `degraded` row that
+> clears on its own within a poll or two is a transient and needs no action.
+
+[End of Procedure]
+
+---
+
+### Silent Gaps
+
+<a id="airgradient-fields-missing"></a>**AIRGRADIENT FIELDS MISSING**
+
+**Indications:** AIRGRADIENT row shows WARN / PARTIAL (`note` starts "fields unavailable"); DCM entry reads "AirGradient fields unavailable: `<fields>` — check device".
+
+`PARTIAL` — `note` starts "fields unavailable: `<fields>`". The device is answering, but one or
+more of the compensated readings (`pm25_ugm3`, `temp_f`, `humidity_pct`) have had no value for longer
+than the carry window (ten minutes by default). Firmware 3.7.0 drops these fields together in about
+one response in five, which the provider rides out by carrying the last values forward; this state
+means that stopped being enough. With them missing, the advisor skips every rule that needs
+temperature, humidity or PM2.5; CO2, VOC, the hazard rule and the humidity-free rules still run.
+
+```text
+-CHECK DEVICE, FIRMWARE.........................POWER-CYCLE THE UNIT
+```
+
+> **NOTE:** The row clears by itself on the first response that carries the fields again. It is not
+> raised in the first ten minutes after the provider starts, because there is nothing to carry yet
+> and a dropped response is normal.
+
+[End of Procedure]
 
 ---
 
@@ -1900,6 +1989,9 @@ titles exactly.
 - [AIR NO CACHE](#air-no-cache)
 - [AIR NO TIMESTAMP](#air-no-timestamp)
 - [AIR OPENWEATHER DEGRADED](#air-openweather-degraded)
+- [AIRGRADIENT FIELDS MISSING](#airgradient-fields-missing)
+- [AIRGRADIENT HOST NOT SET](#airgradient-host-not-set)
+- [AIRGRADIENT UNREACHABLE](#airgradient-unreachable)
 - [ALERTS NOT RUNNING](#alerts-not-running)
 - [AP NO IPS CONFIGURED](#ap-no-ips-configured)
 - [AP PASSWORD FILE MISSING](#ap-password-file-missing)

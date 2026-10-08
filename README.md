@@ -6,8 +6,8 @@ suite/engine split as [`gtex62-osa`](../gtex62-osa/README.md) and
 [`gtex62-sitrep`](../gtex62-sitrep/README.md).
 
 Doctor is a single-panel health console for `gtex62-core` itself. One
-alphabetical table covers all 21 provider domains (AIR, ALERTS, AP, ASTRO,
-AVIATION, CALENDAR, CONNECT, GITHUB, MEDIA, MODEM, MTR, NET, NETWORK, ORB,
+alphabetical table covers all 22 provider domains (AIR, AIRGRAD, ALERTS, AP,
+ASTRO, AVIATION, CALENDAR, CONNECT, GITHUB, MEDIA, MODEM, MTR, NET, NETWORK, ORB,
 PFSENSE, PIHOLE, SOLAR, SYSTEM, TIME, VPN, WEATHER), beside a monitor
 (DCM) that shows cache freshness at a glance and, when something is wrong,
 the fix. The suite owns only the display; the engine's
@@ -59,7 +59,7 @@ Doctor").
 | DCM | Digital Core Monitor. Idle: one vertical gauge per eligible domain, TTL on top, AGE against that TTL. Active: full takeover by one entry per condition (domain, condition, fixed action line, `PROC:` line), scrolling one whole entry at a time when more are active than fit |
 | RUNTIME | The six roots: config, data, cache, assets, suites, media |
 | CONFIG | Time zone, lat, lon, and whether the OpenWeather and AirNow keys are set (never the keys) |
-| PROVIDERS | `DOMAIN \| STATE \| TTL \| AGE \| NOTE` for every domain, plus one reserved blank row and the pointer to README § Provider Toggles in `gtex62-core` |
+| PROVIDERS | `DOMAIN \| STATE \| TTL \| AGE \| NOTE` for every domain, plus the pointer to README § Provider Toggles in `gtex62-core`. `AIRGRAD` is the optional AirGradient indoor-air domain, shown DISABLED unless you have the device and turn it on |
 
 ## Requirements
 
@@ -98,7 +98,7 @@ Everything lives in `~/.config/gtex62-core/`:
 - **`suites/doctor.toml`** is installed from
   `gtex62-core/examples/runtime/suites/doctor.toml.example` by the bootstrap.
   It names a profile for every domain and lists them under `[domains]`.
-  Listing `vpn`, `ap`, `modem`, `alerts`, `mtr` and `pihole` there is what lets
+  Listing `vpn`, `ap`, `modem`, `alerts`, `mtr`, `pihole` and `airgradient` there is what lets
   a Doctor launch keep those providers running when they are enabled in
   `core.toml [providers]`. Edit the installed copy: bootstrap never overwrites
   an existing file.
