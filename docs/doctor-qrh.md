@@ -251,6 +251,21 @@ don't are listed below.
 -RERUN BOOTSTRAP.......................bin/gtex62-core-bootstrap-runtime
 ```
 
+```bash
+bash ~/.config/conky/gtex62-core/bin/gtex62-core-bootstrap-runtime
+```
+
+Each line it prints is `write <path>` for a file it installed or `skip <path>` for one that
+already existed and was left alone. It installs every missing template, not only this
+domain's, so expect a `write` line for the profile you needed. Confirm the file is there:
+
+```bash
+ls ~/.config/gtex62-core/profiles/<domain>/
+```
+
+The provider reads the profile on its next poll, so no restart is needed for a profile that
+was simply absent. (A TTL is the exception: see PROC: FALLBACK TTL.)
+
 ● IF the domain has no `.toml.example` (a newly added provider):
 
 ```text
@@ -290,6 +305,43 @@ row is not DISABLED. It keeps whatever STATE and NOTE the cache gives it (WARN, 
 -ADD DOMAIN.............................to `required` or `optional`
 -RESTART SUITE.....................launcher reads [domains] once, at startup
 ```
+
+1. See whether the domain is listed. Use the domain's lowercase name.
+
+   ```bash
+   sed -n '/^\[domains\]/,$p' ~/.config/gtex62-core/suites/doctor.toml | grep '"alerts"'
+   ```
+
+   No output means it is missing.
+
+2. Add it as a quoted entry inside the `required = [ ... ]` list, one per line, ending with
+   a comma:
+
+   ```toml
+   required = [
+     "doctor",
+     "air",
+     "alerts",
+   ]
+   ```
+
+3. Restart the suite. The launcher reads `[domains]` once, at startup.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice).
+
+4. Confirm the domain's loop now exists. Substitute the domain.
+
+   ```bash
+   kill -0 "$(cat ~/.cache/gtex62-core/runtime/pids/doctor-alerts-refresh.pid 2>/dev/null)" 2>/dev/null && echo ALIVE || echo DEAD
+   ```
+
+For the third case (domain not wanted at all), set the flag in `~/.config/gtex62-core/core.toml` under
+`[providers]`, for example `alerts = false`, then restart as in step 3.
 
 ● IF Doctor should not poll it and another suite's launcher already keeps its cache fresh:
 
@@ -362,6 +414,36 @@ PROC: PROFILE TOML MISSING
 -RESTART SUITE......................launcher reads TTLs once, at startup
 ```
 
+1. Find what the profile is missing by comparing it with the shipped example. Lines marked
+   `>` are in the example but not in your profile.
+
+   ```bash
+   diff ~/.config/gtex62-core/profiles/<domain>/<profile>.toml \
+        ~/.config/conky/gtex62-core/examples/runtime/profiles/<domain>/<profile>.toml.example
+   ```
+
+   `<profile>` is the domain's profile from `[profiles]` in
+   `~/.config/gtex62-core/suites/doctor.toml`.
+
+2. Add the key from the table above, with its shipped-example value, under the right section
+   header in your profile. For example, for AIR:
+
+   ```toml
+   [cache]
+   ttl_sec = 900
+   ```
+
+   If the section header is already there, add only the key beneath it.
+
+3. Restart the suite so the launcher re-reads the TTL.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice). The row clears once Doctor next checks the profile.
+
 > **CAUTION:** Bootstrap will not fix this. It skips a file that already exists
 > (`skip  <path>`), and `--force` overwrites the whole profile, discarding local edits.
 >
@@ -393,6 +475,41 @@ PROC: ASTRO FALLBACK TTL
 -API KEY...........................................................CHECK
 -NETWORK REACHABILITY..............................................CHECK
 ```
+
+This is the generic procedure, so the commands use placeholders. `<domain>` is the row's
+domain in lowercase and `<profile>` is its profile from `[profiles]` in
+`~/.config/gtex62-core/suites/doctor.toml`.
+
+1. Run the provider once by hand and read what it reports.
+
+   ```bash
+   ls ~/.config/conky/gtex62-core/providers/<domain>/
+   bash ~/.config/conky/gtex62-core/providers/<domain>/fetch_<domain>.sh <profile>
+   jq '{state, note}' ~/.cache/gtex62-core/shared/<domain>/<profile>/status.json
+   ```
+
+   The script is `fetch_<domain>.sh` except WEATHER (`fetch_openweather.sh`) and MEDIA
+   (`fetch_lyrics.sh`); the `ls` shows the real names. A `note` that matches a known
+   condition has its own procedure; use it.
+
+2. If `state` is `"ok"` and the cache refreshed, the fetch works and the loop is what
+   stopped. Run the loop check and restart in PROC: TIME NOT RUNNING (steps 1 and 2),
+   using the domain's own PID file name.
+
+3. If the fetch fails, read the error it logged. Not every domain keeps a log. AIR, AVIATION,
+   AIRGRADIENT, NET and WEATHER do.
+
+   ```bash
+   tail -n 5 ~/.cache/gtex62-core/shared/<domain>/<profile>/fetch.log
+   ```
+
+   `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 401` is a rejected API key
+   and `(22) ... 429` is a quota. The domain's own procedure above has the exact test for its
+   source.
+
+   The log is never trimmed, and AIR and WEATHER lines carry no timestamp, so an old error
+   can sit at the bottom. Run `ls -l` on `fetch.log` first: if it was last written long
+   ago, the error is history, not the current fault.
 
 > **NOTE:** Several domains have a better answer than this one. ALERTS has no API, so "check
 > the API key" would be wrong for it. CALENDAR reads local files only. NET, SYSTEM and TIME
@@ -495,6 +612,34 @@ is AIR's, and AIRGRADIENT's: here it means no provider timestamp.
 -SET [location] LAT/LON.........................air profile or site.toml
 ```
 
+1. Set the coordinates in one of two places. The air profile wins if both are set.
+
+   - `~/.config/gtex62-core/site.toml`, shared by every domain (preferred):
+
+     ```toml
+     [location.home]
+     lat = 35.0000
+     lon = -89.0000
+     ```
+
+   - `~/.config/gtex62-core/profiles/air/home.toml`, for AIR only:
+
+     ```toml
+     [location]
+     lat = 35.0000
+     lon = -89.0000
+     ```
+
+   Use decimal degrees, negative for south and west.
+
+2. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/air/fetch_air.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/air/home/status.json
+   ```
+
 [End of Procedure]
 
 ---
@@ -508,6 +653,26 @@ is AIR's, and AIRGRADIENT's: here it means no provider timestamp.
 ```text
 -SET API KEY..................OpenWeather Air Pollution key, air profile
 ```
+
+1. Put the OpenWeather key in `~/.config/gtex62-core/site.toml`, where WEATHER also reads it:
+
+   ```toml
+   [credentials]
+   openweather_api_key = "your-key-here"
+   ```
+
+   An `api_key` under `[openweather]` in `~/.config/gtex62-core/profiles/air/home.toml` overrides it for
+   AIR alone. Keys are free from openweathermap.org; the Air Pollution API is included.
+
+2. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/air/fetch_air.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/air/home/status.json
+   ```
+
+   If the state is not `"ok"`, test the key with PROC: AIR OPENWEATHER DEGRADED.
 
 [End of Procedure]
 
@@ -526,6 +691,32 @@ cache to serve. Clears on the first successful fetch.
 -CHECK REACHABILITY..................................OpenWeather, AirNow
 ```
 
+1. Read the error the fetch logged. `curl` writes its failure there, without the key.
+
+   ```bash
+   tail -n 5 ~/.cache/gtex62-core/shared/air/home/fetch.log
+   ```
+
+   `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 401` means a key was
+   rejected. `(22) ... 429` means a quota was hit.
+
+   The log is never trimmed, and AIR and WEATHER lines carry no timestamp, so an old error
+   can sit at the bottom. Run `ls -l` on `fetch.log` first: if it was last written long
+   ago, the error is history, not the current fault.
+
+2. Test each source directly. Use the OpenWeather test in PROC: AIR OPENWEATHER DEGRADED
+   and the AirNow test in PROC: AIR AIRNOW DEGRADED. Only OpenWeather is required for a
+   first cache to exist.
+
+3. Rerun the provider and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/air/fetch_air.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/air/home/status.json
+   ```
+
+   `state` of `"ok"` means the cache now exists.
+
 [End of Procedure]
 
 ---
@@ -541,6 +732,29 @@ sources returned data.
 ```text
 -CHECK API STATUS....................................AirNow, OpenWeather
 ```
+
+1. See which source lost its timestamp.
+
+   ```bash
+   jq '{openweather: .openweather.valid, airnow: .airnow.valid}' ~/.cache/gtex62-core/shared/air/home/current.json
+   ```
+
+   A source reading `false` is the one to test.
+
+2. Test that source directly. For OpenWeather use PROC: AIR OPENWEATHER DEGRADED. For
+   AirNow use PROC: AIR AIRNOW DEGRADED.
+
+3. If both tests return `200` and both flags still read `false`, AirNow's data may be older
+   than the profile accepts. `max_age_sec` in `[airnow]` of
+   `~/.config/gtex62-core/profiles/air/home.toml` discards readings older than that, and
+   the profile's own comment says to keep it at 7200 or more.
+
+4. Rerun the provider.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/air/fetch_air.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/air/home/status.json
+   ```
 
 > **NOTE:** `PARTIAL` fires only when *neither* source resolves a timestamp. If one source
 > still resolves one and the other is down, the row is `DEGRADED` instead.
@@ -569,6 +783,34 @@ profile, so a site that never configured it is not flagged.
 -CHECK QUOTA.................................................OpenWeather
 ```
 
+1. Ask OpenWeather the same question the provider asks, and print only the HTTP status.
+   The key is read from `site.toml` and never printed.
+
+   ```bash
+   SITE=~/.config/gtex62-core/site.toml
+   lat=$(awk -F'= *' '/^lat/{print $2; exit}' $SITE)
+   lon=$(awk -F'= *' '/^lon/{print $2; exit}' $SITE)
+   key=$(awk -F'"' '/^openweather_api_key/{print $2}' $SITE)
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://api.openweathermap.org/data/2.5/air_pollution?lat=$lat&lon=$lon&appid=$key"
+   ```
+
+   - `200`: the key and the service are fine right now. Go to the rerun step.
+   - `401` or `403`: the key was rejected. Replace it (see where the key lives, below).
+   - `429`: the quota is used up. Wait for the window to reset, or use a different key.
+   - A curl error instead of a code (`(6)` DNS, `(28)` timeout): the network, not the key.
+     Test it with `curl -sS -o /dev/null -w '%{http_code}\n' https://example.com`.
+
+   The key lives in `[credentials] openweather_api_key` of
+   `~/.config/gtex62-core/site.toml`. An `[openweather] api_key` in the air profile
+   overrides it. A new key can take a couple of hours to activate.
+
+2. Rerun the provider and confirm the flag cleared.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/air/fetch_air.sh home
+   jq '{openweather: .openweather.valid, airnow: .airnow.valid}' ~/.cache/gtex62-core/shared/air/home/current.json
+   ```
+
 ```text
 PROC: AIR NO TIMESTAMP
 ```
@@ -589,6 +831,46 @@ profile, so a site that never configured it is not flagged.
 -CHECK API KEY....................................................AirNow
 -CHECK QUOTA......................................................AirNow
 ```
+
+1. Ask AirNow the same question the provider asks, and print only the HTTP status. The key
+   is read from `site.toml` and never printed.
+
+   ```bash
+   SITE=~/.config/gtex62-core/site.toml
+   lat=$(awk -F'= *' '/^lat/{print $2; exit}' $SITE)
+   lon=$(awk -F'= *' '/^lon/{print $2; exit}' $SITE)
+   key=$(awk -F'"' '/^airnow_api_key/{print $2}' $SITE)
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://www.airnowapi.org/aq/observation/current/ziplatlong/?format=application/json&latitude=$lat&longitude=$lon&distance=25&API_KEY=$key"
+   ```
+
+   - `200`: the key and the service are fine right now. Go to the rerun step.
+   - `401` or `403`: the key was rejected. Replace it (see where the key lives, below).
+   - `429`: the quota is used up. Wait for the window to reset, or use a different key.
+   - A curl error instead of a code (`(6)` DNS, `(28)` timeout): the network, not the key.
+     Test it with `curl -sS -o /dev/null -w '%{http_code}\n' https://example.com`.
+
+   The key lives in `[credentials] airnow_api_key` of `~/.config/gtex62-core/site.toml`.
+
+2. If the code is `200`, check that AirNow actually returned readings. The number printed
+   should be above 0.
+
+   ```bash
+   curl -sS "https://www.airnowapi.org/aq/observation/current/ziplatlong/?format=application/json&latitude=$lat&longitude=$lon&distance=25&API_KEY=$key" | jq 'if type == "array" then length else . end'
+   ```
+
+   Run it in the same shell as step 1, which sets `key`, `lat` and `lon`. A number is the
+   count of readings. An error message instead of a number is AirNow rejecting the request.
+   `0` usually means no monitoring station within `distance_miles` (25 by default).
+   Raise `distance_miles` in `[airnow]` of `~/.config/gtex62-core/profiles/air/home.toml`.
+   Readings older than `max_age_sec` there are discarded, and the profile's own comment
+   says to keep it at 7200 or more.
+
+3. Rerun the provider and confirm the flag cleared.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/air/fetch_air.sh home
+   jq '{openweather: .openweather.valid, airnow: .airnow.valid}' ~/.cache/gtex62-core/shared/air/home/current.json
+   ```
 
 ```text
 PROC: AIR NO TIMESTAMP
@@ -621,6 +903,30 @@ shipped template leaves it blank on purpose, because the address is yours.
 ```text
 -SET [device].host..............................airgradient profile TOML
 ```
+
+1. Find the device's address. It is on the AirGradient's own display, and in your router's
+   DHCP client list. A static reservation keeps it from changing.
+
+2. Put it in `~/.config/gtex62-core/profiles/airgradient/indoor.toml`:
+
+   ```toml
+   [device]
+   host = "192.168.x.x"
+   ```
+
+3. Check the device answers at that address.
+
+   ```bash
+   curl -sS -m 5 -o /dev/null -w '%{http_code}\n' http://192.168.x.x/measures/current
+   ```
+
+   `200` means the address is right. Then no restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/airgradient/fetch_airgradient.sh indoor home home home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/airgradient/indoor/status.json
+   ```
 
 ● IF `note` is `"missing profile toml"`:
 
@@ -699,6 +1005,44 @@ unwritable.
 -CHECK REFRESH_LOOP................................................ALIVE
 ```
 
+1. Check this suite's loop is alive. The launcher keeps one PID file per domain loop.
+
+   ```bash
+   kill -0 "$(cat ~/.cache/gtex62-core/runtime/pids/doctor-airgradient-refresh.pid 2>/dev/null)" 2>/dev/null && echo ALIVE || echo DEAD
+   ```
+
+   - `ALIVE`: go to step 3.
+   - `DEAD`, or no PID file: go to step 2. If there is no PID file at all and the
+     domain is dual-gated, the launcher never started it: see PROC: DOMAIN NOT LISTED first.
+
+2. Restart the suite. The launcher starts every domain's initial refresh and loop at
+   startup, so a restart brings back a dead one.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice). Repeat step 1.
+
+3. The loop is alive but the cache is still missing or stale. Run the provider once by hand
+   and read what it reports.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/airgradient/fetch_airgradient.sh indoor home home home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/airgradient/indoor/status.json
+   ```
+
+   `state` of `"ok"` means the cache is written and the row clears on Doctor's next
+   refresh. Any other `state`: read `note` and follow the procedure for it.
+
+> **NOTE:** The loops exit when the suite's Conky window does (each checks that
+> Conky is still running on every cycle). Closing or crashing the Doctor window is the
+> usual way a loop dies. `doctor-` in the PID file name is the suite ID; a cache fed by
+> another suite's launcher uses that suite's ID (`sitrep-`, `osa-`). A fresh cache does
+> not prove *this* suite's loop is alive: another suite's loop can be refreshing the same
+> shared file.
+>
 > **NOTE:** Not a device, API-key or network problem. AirGradient is a keyless device on your LAN, and a
 > dead or unreachable device leaves the file fresh and reads `DEGRADED` instead (PROC: AIRGRADIENT
 > UNREACHABLE). If the cause is that the launching suite does not list the domain, the row says so
@@ -725,6 +1069,44 @@ directory is unwritable.
 -FETCH_ALERTS.SH.................................WIRED INTO REFRESH LOOP
 ```
 
+1. Check this suite's loop is alive. The launcher keeps one PID file per domain loop.
+
+   ```bash
+   kill -0 "$(cat ~/.cache/gtex62-core/runtime/pids/doctor-alerts-refresh.pid 2>/dev/null)" 2>/dev/null && echo ALIVE || echo DEAD
+   ```
+
+   - `ALIVE`: go to step 3.
+   - `DEAD`, or no PID file: go to step 2. If there is no PID file at all and the
+     domain is dual-gated, the launcher never started it: see PROC: DOMAIN NOT LISTED first.
+
+2. Restart the suite. The launcher starts every domain's initial refresh and loop at
+   startup, so a restart brings back a dead one.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice). Repeat step 1.
+
+3. The loop is alive but the cache is still missing or stale. Run the provider once by hand
+   and read what it reports.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/alerts/fetch_alerts.sh main_router pi5 local local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/alerts/main_router/banner.json
+   ```
+
+   `state` of `"ok"` means the cache is written and the row clears on Doctor's next
+   refresh. Any other `state`: read `note` and follow the procedure for it.
+
+> **NOTE:** The loops exit when the suite's Conky window does (each checks that
+> Conky is still running on every cycle). Closing or crashing the Doctor window is the
+> usual way a loop dies. `doctor-` in the PID file name is the suite ID; a cache fed by
+> another suite's launcher uses that suite's ID (`sitrep-`, `osa-`). A fresh cache does
+> not prove *this* suite's loop is alive: another suite's loop can be refreshing the same
+> shared file.
+>
 > **NOTE:** Not an API-key or network problem. ALERTS has no API of its own and no
 > failure path. Its 60s TTL is the launcher's bash default — no `profiles/alerts/*.toml`
 > ships.
@@ -754,6 +1136,23 @@ functional dependency on PFSENSE, and a missing pfSense profile TOML has no effe
 -SET [ap] ips/labels...........................................site.toml
 ```
 
+1. Edit `~/.config/gtex62-core/site.toml`. Both values are comma-separated strings, in the same order,
+   one label per IP:
+
+   ```toml
+   [ap]
+   ips = "192.168.x.1,192.168.x.2,192.168.x.3"
+   labels = "FIRST,SECOND,THIRD"
+   ```
+
+2. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/ap/fetch_ap.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/ap_status.json
+   ```
+
 [End of Procedure]
 
 ---
@@ -768,6 +1167,31 @@ not exist.
 ```text
 -CREATE FILE....................................~/.config/zyxel_ap/.pass
 ```
+
+1. Create the file with the APs' admin password on a single line and nothing else. This
+   prompts for the password, so it never lands in your shell history.
+
+   ```bash
+   mkdir -p ~/.config/zyxel_ap
+   read -rs -p 'AP admin password: ' pw; echo
+   printf '%s\n' "$pw" > ~/.config/zyxel_ap/.pass
+   unset pw
+   chmod 600 ~/.config/zyxel_ap/.pass
+   ```
+
+2. Confirm it is non-empty. The provider treats an empty file as missing.
+
+   ```bash
+   test -s ~/.config/zyxel_ap/.pass && echo FILE OK || echo FILE EMPTY
+   ```
+
+3. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now. A wrong password then shows as PROC: AP SSH GATE.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/ap/fetch_ap.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/ap_status.json
+   ```
 
 [End of Procedure]
 
@@ -786,6 +1210,61 @@ Pi-hole's.
 -CHECK SSH ALIAS......................................................AP
 -CHECK SSHPASS CREDENTIALS............................................AP
 ```
+
+AP differs from the others. Zyxel APs do not take key-based SSH, so AP logs in as `admin`
+with a password that `sshpass` reads from `~/.config/zyxel_ap/.pass`, and it connects to the
+IPs in `[ap] ips` of `~/.config/gtex62-core/site.toml`, not to an alias. The gate trips only
+on an authentication-type failure (permission denied, authentication failed, access denied,
+too many authentication failures, host key verification failed). A plain timeout does not
+trip it.
+
+1. Read the gate. It is a circuit breaker: after an SSH failure it blocks further attempts
+   for a cooldown (3s, then 10s, 30s, 120s, and 600s from the fifth failure in a row), then
+   lets the provider try again by itself.
+
+   ```bash
+   GATE_STATE_DIR=~/.cache/gtex62-core/runtime/ap bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh status
+   ```
+
+   `OK` means it has already cleared and the row follows on the next poll.
+   `TRIPPED|left=N|fails=N|reason=...` means it is still holding. `fails` is how many
+   attempts in a row have failed, so a high number means the cause has persisted.
+
+2. Log in to one AP the way the provider does. Substitute an IP from `[ap] ips`.
+
+   ```bash
+   printf 'show version\nexit\n' | sshpass -f ~/.config/zyxel_ap/.pass ssh \
+     -o ConnectTimeout=5 -o ConnectionAttempts=1 -o LogLevel=ERROR \
+     -o PubkeyAuthentication=no -o KbdInteractiveAuthentication=yes \
+     -o PreferredAuthentications=keyboard-interactive,password \
+     -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new \
+     -tt admin@192.168.40.4
+   ```
+
+   A `Router>` prompt and a model line mean the login works. Otherwise:
+
+   - `Permission denied` or `Authentication failed`: the password in `.pass` is wrong, or
+     was changed on the AP. The file holds the password on one line, nothing else. Correct
+     it (see PROC: AP PASSWORD FILE MISSING for the file itself).
+   - `Connection timed out` or `No route to host`: the AP is off or unreachable. Ping it.
+   - `Host key verification failed`: the AP's key changed. If you know why, clear it with
+     `ssh-keygen -R <ip>`.
+
+   Test each IP in `[ap] ips`. One bad AP trips the gate for the whole fleet.
+
+3. Once the test passes, clear the gate rather than waiting out the cooldown. This
+   fixes nothing by itself: if the cause is still there, the next poll trips it again.
+
+   ```bash
+   GATE_STATE_DIR=~/.cache/gtex62-core/runtime/ap bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh reset
+   ```
+
+4. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/ap/fetch_ap.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/ap_status.json
+   ```
 
 > **NOTE:** Never "check the PFSENSE row." AP's gate and cache are self-contained;
 > sending someone to PFSENSE means hunting for a cause that isn't there.
@@ -809,6 +1288,32 @@ Pi-hole's.
 ```text
 -SET [location] LAT/LON.......................astro profile or site.toml
 ```
+
+1. Set the coordinates in one of two places. The astro profile wins if both are set.
+
+   - `~/.config/gtex62-core/site.toml`, shared by every domain (preferred):
+
+     ```toml
+     [location.home]
+     lat = 35.0000
+     lon = -89.0000
+     ```
+
+   - `~/.config/gtex62-core/profiles/astro/home.toml`, for ASTRO only:
+
+     ```toml
+     [location]
+     lat = 35.0000
+     lon = -89.0000
+     ```
+
+2. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/astro/fetch_astro.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/astro/home/status.json
+   ```
 
 [End of Procedure]
 
@@ -846,6 +1351,41 @@ which. ASTRO's data collection is unaffected — pure `pyephem`, and its own fai
 
 > **CAUTION:** Bootstrap will not fix this second case. It skips a file that already exists,
 > and `--force` overwrites the whole profile, discarding local edits.
+
+1. Check which case applies.
+
+   ```bash
+   ls ~/.config/gtex62-core/profiles/astro/
+   grep -n -A3 '^\[cache\]' ~/.config/gtex62-core/profiles/astro/home.toml
+   ```
+
+   No file listed: it is missing. A file with no `[cache]` lines, or a `[cache]` section
+   without the key: the key is missing.
+
+2. Fix it.
+
+   - File missing: run `bash ~/.config/conky/gtex62-core/bin/gtex62-core-bootstrap-runtime`. It prints `write`
+     for what it installed and `skip` for what already existed.
+   - File present, key missing: add to `~/.config/gtex62-core/profiles/astro/home.toml`:
+
+     ```toml
+     [cache]
+     refresh_sec = 60
+     ```
+
+     If a `[cache]` header is already there, add only the key beneath it.
+
+3. Restart the suite. This step is not optional.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice).
+
+4. The row clears once Doctor next checks the profile. ASTRO's configured and fallback
+   cadence are both 60s, so the cache itself looks the same either way.
 
 ```text
 PROC: NET FALLBACK TTL
@@ -889,6 +1429,38 @@ The field name and its `last_ok` timestamp come straight from `note`
 -CHECK REACHABILITY..................................aviationweather.gov
 ```
 
+1. Read the error the fetch logged. Each line is tagged with the time and which call
+   produced it.
+
+   ```bash
+   tail -n 10 ~/.cache/gtex62-core/shared/aviation/home/fetch.log
+   ```
+
+   `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 5xx` is aviationweather.gov
+   itself having a bad moment, which usually passes by itself.
+
+   The log is never trimmed, so check `ls -l` on `fetch.log` first: if it was last written
+   long ago, the error is history, not the current fault.
+
+2. Ask aviationweather.gov the same question the provider asks, and print only the HTTP
+   status. The station comes from `[aviation] metar` in `~/.config/gtex62-core/site.toml`.
+
+   ```bash
+   st=$(awk -F'"' '/^metar/{print $2}' ~/.config/gtex62-core/site.toml)
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://aviationweather.gov/api/data/metar?ids=$st&format=raw&hours=1"
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://aviationweather.gov/api/data/taf?ids=$st&format=raw"
+   ```
+
+   `200` on both means the source is up now. Anything else, or a curl error, is the
+   network or the source, and there is nothing to fix on this machine.
+
+3. Rerun the provider and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/aviation/fetch_aviation.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/aviation/home/status.json
+   ```
+
 > **NOTE:** Both failing still degrades rather than errors, as long as some cache exists to
 > keep serving.
 
@@ -906,6 +1478,38 @@ nothing to serve.
 ```text
 -CHECK REACHABILITY..................................aviationweather.gov
 ```
+
+1. Read the error the fetch logged. Each line is tagged with the time and which call
+   produced it.
+
+   ```bash
+   tail -n 10 ~/.cache/gtex62-core/shared/aviation/home/fetch.log
+   ```
+
+   `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 5xx` is aviationweather.gov
+   itself having a bad moment, which usually passes by itself.
+
+   The log is never trimmed, so check `ls -l` on `fetch.log` first: if it was last written
+   long ago, the error is history, not the current fault.
+
+2. Ask aviationweather.gov the same question the provider asks, and print only the HTTP
+   status. The station comes from `[aviation] metar` in `~/.config/gtex62-core/site.toml`.
+
+   ```bash
+   st=$(awk -F'"' '/^metar/{print $2}' ~/.config/gtex62-core/site.toml)
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://aviationweather.gov/api/data/metar?ids=$st&format=raw&hours=1"
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://aviationweather.gov/api/data/taf?ids=$st&format=raw"
+   ```
+
+   `200` on both means the source is up now. Anything else, or a curl error, is the
+   network or the source, and there is nothing to fix on this machine.
+
+3. Rerun the provider and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/aviation/fetch_aviation.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/aviation/home/status.json
+   ```
 
 [End of Procedure]
 
@@ -930,6 +1534,48 @@ missing far longer than any staleness check would catch.
 -INITIAL_REFRESH WIRING............................................CHECK
 ```
 
+The wiring is in core's launcher (`bin/gtex62-core-launch`): CALENDAR gets an
+`initial_refresh` and a `refresh_loop` unconditionally, with no flag to switch on. So a
+missing cache is not a missing line of wiring. Either this suite's launcher never ran, or
+the fetch itself failed.
+
+1. Check this suite's loop is alive. The launcher keeps one PID file per domain loop.
+
+   ```bash
+   kill -0 "$(cat ~/.cache/gtex62-core/runtime/pids/doctor-calendar-refresh.pid 2>/dev/null)" 2>/dev/null && echo ALIVE || echo DEAD
+   ```
+
+   - `ALIVE`: go to step 3.
+   - `DEAD`, or no PID file: go to step 2.
+
+2. Restart the suite. The launcher starts every domain's initial refresh and loop at
+   startup, so a restart brings back a dead one.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice). Repeat step 1.
+
+3. The loop is alive but the cache is still missing or stale. Run the provider once by hand
+   and read what it reports.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/calendar/fetch_calendar.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/calendar/local/status.json
+   ```
+
+   `state` of `"ok"` means the cache is written and the row clears on Doctor's next
+   refresh. Any other `state`: read `note` and follow the procedure for it.
+
+> **NOTE:** The loops exit when the suite's Conky window does (each checks that
+> Conky is still running on every cycle). Closing or crashing the Doctor window is the
+> usual way a loop dies. `doctor-` in the PID file name is the suite ID; a cache fed by
+> another suite's launcher uses that suite's ID (`sitrep-`, `osa-`). A fresh cache does
+> not prove *this* suite's loop is alive: another suite's loop can be refreshing the same
+> shared file.
+>
 > **NOTE:** A cache that exists but holds zero events is not this procedure. Past
 > pre-flight CALENDAR always writes `state:"ok"`, and nothing in the cache distinguishes
 > "nothing on the calendar" from "the source file was never read."
@@ -964,6 +1610,40 @@ unavailable"`). `status.json`'s `state` now follows `current.json`'s nested
 -LICENSE FLAGS............................--accept-license --accept-gdpr
 ```
 
+1. Confirm the CLI is the Ookla one. The provider calls `speedtest -f json --accept-license
+   --accept-gdpr`, which only the Ookla client understands (not the Python `speedtest-cli`).
+
+   ```bash
+   command -v speedtest && speedtest --version
+   ```
+
+   - No path printed: the CLI is not installed. Install Ookla's `speedtest`, then go to step 3.
+   - Version line does not start "Speedtest by Ookla": wrong client. Replace it with the
+     Ookla one, then go to step 3.
+
+2. Run the exact call by hand to see the real error. The provider discards it
+   (`2>/dev/null`), so DCM only ever shows "speedtest failed or unavailable".
+
+   ```bash
+   speedtest -f json --accept-license --accept-gdpr
+   ```
+
+   - JSON prints: the CLI works from your shell. Go to step 3. The provider also passes
+     `-s <server_id>` when one is set, so if the failure returns, check `server_id` as below.
+   - An error prints: that message is the cause. A network or DNS error means fix the
+     connection first. A server error with a `server_id` set in the profile or `site.toml`
+     means the pinned server is gone: list servers with `speedtest -L` and update
+     `server_id` (or clear it) in `~/.config/gtex62-core/profiles/connectivity/default.toml`.
+
+3. Rerun the provider and verify the state cleared.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/connectivity/fetch_connectivity.sh default
+   jq '.speedtest | {state, note}' ~/.cache/gtex62-core/shared/connectivity/default/current.json
+   ```
+
+   `state` should read `"ok"`. DCM and the CONNECT row clear on their next refresh.
+
 > **NOTE:** `speedtest.state:"disabled"` (speedtest never enabled in the profile) still
 > reads `state:"ok"`. That is a choice, not a failure — there is no procedure for it.
 
@@ -984,8 +1664,24 @@ from `current.json`'s own `age_days`, not from `status.json`'s age.
 -RUN SPEEDTEST..................................................MANUALLY
 ```
 
+```bash
+bash ~/.config/conky/gtex62-core/providers/connectivity/fetch_connectivity.sh default
+```
+
+```text
+-VERIFY...........shared/connectivity/default/current.json, speedtest.state "ok"
+```
+
 > **NOTE:** There is no automatic refresh to fall back on. The AGE cell shows the time of the
 > last manual run.
+>
+> **NOTE:** The command blocks until it finishes, since it performs a real `speedtest`. The
+> provider reuses a snapshot younger than `max_age_days` and tests only when it is older, so
+> in this STALE state the command always runs a fresh test. A failed test leaves
+> `speedtest.state:"error"` — see CONNECT SPEEDTEST FAILING.
+>
+> **NOTE:** Do not use `speedtest_snapshot.sh run` for this. It writes to the suite's
+> `net/` cache, not the `shared/connectivity/` cache Doctor reads, so STALE would not clear.
 
 [End of Procedure]
 
@@ -1012,6 +1708,36 @@ procedure here is a `fetch_github.sh` or profile-TOML fix. `STALE` is not used f
 ```text
 -POPULATE FILE.................~/.config/conky/github-traffic-repos.json
 ```
+
+1. Write the file as JSON, one `owner/repo` per entry:
+
+   ```json
+   {
+     "repos": [
+       "owner/first-repo",
+       "owner/second-repo"
+     ]
+   }
+   ```
+
+   An entry may also be an object, `{"repo": "owner/name", "note": "..."}`.
+
+2. Check it parses. A file that is missing, is not valid JSON, or has no `repos` list is
+   all read as empty, so this exact message can also mean a typo.
+
+   ```bash
+   jq '.repos | length' ~/.config/conky/github-traffic-repos.json
+   ```
+
+   It should print the number of repos. A `jq` parse error is the cause.
+
+3. The GITHUB provider runs from a systemd timer, not the launcher. Run it now, rather
+   than waiting for the timer.
+
+   ```bash
+   systemctl --user start gtex62-github-traffic.service
+   jq '{state, note}' ~/.cache/gtex62-core/shared/github/default/status.json
+   ```
 
 [End of Procedure]
 
@@ -1153,6 +1879,34 @@ a symlink to network storage; the provider only needs it configured and reachabl
 -CHECK NAS MOUNT................................[media.lyrics] local_dir
 ```
 
+The provider's test is a plain directory listing of `local_dir`. Do the same by hand.
+
+1. List the directory.
+
+   ```bash
+   dir=$(awk -F'"' '/^local_dir/{print $2}' ~/.config/gtex62-core/site.toml)
+   ls "$dir" | head -3
+   ```
+
+   Files listed: the directory is reachable now. The condition was transient. Go to step 3.
+
+2. If the listing fails or hangs, find out what the path is mounted from.
+
+   ```bash
+   findmnt -T "$dir"
+   ```
+
+   The `SOURCE` column names the NAS share. Check that the NAS host in it is on, and that
+   you can reach it with `ping -c 3 <host>`. If the host answers, accessing the path again
+   usually remounts it (an autofs mount mounts on first access).
+
+3. Rerun the provider and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/media/fetch_lyrics.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/media/local/status.json
+   ```
+
 [End of Procedure]
 
 ---
@@ -1180,6 +1934,29 @@ They can fire together, in which case `note` carries every reason.
 -SET [credentials].password...........................modem profile TOML
 ```
 
+1. Edit `~/.config/gtex62-core/profiles/modem/local.toml` and replace `CHANGE_ME` with the modem
+   admin password (the one you use to sign in at `http://192.168.100.1`):
+
+   ```toml
+   [credentials]
+   password = "your-modem-password"
+   ```
+
+2. Restrict the file, since it now holds a password.
+
+   ```bash
+   chmod 600 ~/.config/gtex62-core/profiles/modem/local.toml
+   ```
+
+3. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm. A wrong password then shows as
+   PROC: MODEM AUTH FAILED.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/modem/fetch_modem.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
+
 ● IF `note` is `"missing profile toml"`:
 
 ```text
@@ -1206,6 +1983,33 @@ the modem's admin UI.
 -CHECK PFSENSE NAT PATH....................................192.168.100.1
 ```
 
+1. Try the modem's admin page directly and print only the HTTP status.
+
+   ```bash
+   curl -sS -m 8 -o /dev/null -w '%{http_code}\n' http://192.168.100.1/GenieLogin.asp
+   ```
+
+   - `200`: the modem answers now. The failure was transient. Go to step 3.
+   - A curl error (`(7)` refused, `(28)` timeout) or `000`: the path is down. Go to step 2.
+
+2. Work out where the path breaks, nearest hop first.
+
+   ```bash
+   ping -c 3 192.168.100.1
+   ping -c 3 <pfSense address>
+   ```
+
+   The modem is reached through pfSense (a NAT rule to a virtual IP). If pfSense answers
+   and the modem does not, check that the modem is powered and its cable link is up. If
+   pfSense does not answer, the problem is upstream of MODEM; look at the PFSENSE row.
+
+3. Rerun the provider and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/modem/fetch_modem.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
+
 > **NOTE:** This is the scrape failing, not the modem's DOCSIS state. If the modem answered
 > and the row still reads `DEGRADED`, this is the wrong procedure — see PROC: MODEM AUTH
 > FAILED and PROC: MODEM CONN DEGRADED.
@@ -1225,6 +2029,28 @@ same `state`.
 ```text
 -CHECK CREDENTIALS................................[credentials].password
 ```
+
+1. Read the exact reason the login failed.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/modem/fetch_modem.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
+
+2. Check the credentials the provider uses. They are in
+   `~/.config/gtex62-core/profiles/modem/local.toml`: `username` under `[connection]` and
+   `password` under `[credentials]`.
+
+3. Prove the credentials by logging in yourself. Open `http://192.168.100.1` in a browser and
+   sign in with that username and password. If the browser login fails too, the password in
+   the file is wrong or the modem's password was changed. Correct the file. If the browser
+   login works and the provider still fails, keep the `note` from step 1: the provider's
+   own message says whether it got no session cookie after login.
+
+4. Rerun the provider (step 1) and confirm `state` is `"ok"`.
+
+> **NOTE:** `chmod 600 ~/.config/gtex62-core/profiles/modem/local.toml` once the real password
+> is in it. The provider warns, without blocking, if the file is readable by others.
 
 ```text
 PROC: MODEM UNREACHABLE
@@ -1252,6 +2078,34 @@ exists to answer "is the modem actually registered," not "did the scrape succeed
 -CHECK DOCSIS SYNC.................................................MODEM
 -SCRAPER...................................................NOT THE CAUSE
 ```
+
+1. Read what the provider scraped.
+
+   ```bash
+   jq '.connectivity_state' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
+
+   `status` other than `"OK"` (the `comment` says why) is the modem's own report that it is
+   not registered with Comcast.
+
+2. Confirm it on the modem itself. Open the modem's own status page: `http://192.168.100.1` in a browser, sign in with the
+`username` and `password` from `~/.config/gtex62-core/profiles/modem/local.toml`, then open
+the DOCSIS status page (`DocsisStatus.asp`).
+   The startup table there shows the same `Connectivity State` row. The modem's own page
+   is the authority: if it reads OK there and the provider says otherwise, rerun the provider
+   (step 4) before doing anything else.
+
+3. If the modem confirms it is not registered, power-cycle it: unplug it for 30 seconds,
+   plug it back in, and wait several minutes for it to re-register. If it still does not
+   register, the cause is on the Comcast side or in the coax, not on this machine: check
+   that the coax connectors are finger-tight, then contact Comcast.
+
+4. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/modem/fetch_modem.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
 
 > **NOTE:** The scrape worked, so the NAT path to `192.168.100.1` is working — do not
 > send the reader there. That check belongs to PROC: MODEM UNREACHABLE.
@@ -1295,6 +2149,39 @@ scraper's parser no longer finds the columns it expects. Reachability, login and
 -CHECK ADMIN UI LAYOUT...............................usTable, d31dsTable
 ```
 
+1. Read the exact note. It names which table failed and, for a header mismatch, lists the
+   headers the provider actually saw.
+
+   ```bash
+   jq '{state, note}' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
+
+2. Rule out a bad response. The modem sometimes returns a login or error page in place of
+   the status page, which looks like a missing table. Rerun the provider.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/modem/fetch_modem.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
+
+   If the note is gone, it was a one-off. Stop here.
+
+3. If the same note returns, the modem's page layout has changed. Open the modem's own status page: `http://192.168.100.1` in a browser, sign in with the
+`username` and `password` from `~/.config/gtex62-core/profiles/modem/local.toml`, then open
+the DOCSIS status page (`DocsisStatus.asp`). Compare the
+   column headings of the upstream table (`usTable`) and the OFDM downstream table
+   (`d31dsTable`) with the keywords the provider looks for:
+
+   ```bash
+   grep -n -A8 -E '^(US|DS_OFDM)_COLUMN_MAP' ~/.config/conky/gtex62-core/providers/modem/fetch_modem.py
+   ```
+
+   A heading the provider no longer matches (for example "Lock Status" renamed) is the
+   cause. The fix is in core, not in this suite: update the keyword for that column in
+   `fetch_modem.py`, then run the modem regression tests beside it
+   (`~/.config/conky/gtex62-core/providers/modem/test_fetch_modem_regressions.py`). This is a core code change, so make it
+   in the `gtex62-core` repo.
+
 ● IF `upstream_channels` is the empty array — the upstream table (`usTable`) did not parse.
 
 ● IF `downstream_ofdm_channels` is the empty array — the downstream table (`d31dsTable`)
@@ -1325,6 +2212,33 @@ PROC: MODEM NO UPSTREAM LOCK
 ```text
 -CHECK DOCSIS UPSTREAM SYNC........................................MODEM
 ```
+
+1. Read the upstream channels the provider scraped.
+
+   ```bash
+   jq '[.upstream_channels[] | {id, locked}]' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
+
+   The condition is every channel showing `"locked": false`. A healthy modem here locks
+   several upstream channels.
+
+2. Confirm it on the modem. Open the modem's own status page: `http://192.168.100.1` in a browser, sign in with the
+`username` and `password` from `~/.config/gtex62-core/profiles/modem/local.toml`, then open
+the DOCSIS status page (`DocsisStatus.asp`). In the upstream table, every channel's Lock
+   Status should read Locked. If the modem shows Locked and the provider shows `false`,
+   the provider is misreading the page: treat it as PROC: MODEM HEADER MAPPING, and rerun
+   the provider first.
+
+3. If the modem confirms nothing is locked, it cannot send data upstream, so the internet
+   is probably down as well. Power-cycle the modem (unplug 30 seconds, then wait several
+   minutes). If it still will not lock, check the coax connectors, then contact Comcast.
+
+4. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/modem/fetch_modem.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/modem/local/status.json
+   ```
 
 > **NOTE:** A `0.0` in SitRep's US AVG while this NOTE is present is not a real
 > reading. The average used to render a fully-unlocked array as a plausible `0.0`; the NOTE
@@ -1358,6 +2272,27 @@ AP's.
 -SET ssh_target.........................................mtr profile TOML
 ```
 
+1. Set the SSH alias of the host that runs MTR, in `~/.config/gtex62-core/profiles/mtr/pi5.toml`:
+
+   ```toml
+   ssh_target = "pi5"
+   ```
+
+   The value is a `Host` alias from `~/.ssh/config`, not a bare hostname you have not
+   configured. Check the alias connects first:
+
+   ```bash
+   ssh -o BatchMode=yes -o ConnectTimeout=5 pi5 true; echo rc=$?
+   ```
+
+2. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/mtr/fetch_mtr.sh pi5 main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/mtr/pi5/mtr_state.json
+   ```
+
 [End of Procedure]
 
 ---
@@ -1375,6 +2310,53 @@ confirm"`, `"…during start"` or `"…during outer-cap stop"`. All three trip t
 -CHECK SSH ALIAS...............................................MTR (Pi5)
 -CHECK SSHPASS CREDENTIALS.....................................MTR (Pi5)
 ```
+
+MTR connects with a key, not a password, so there are no sshpass credentials to check. The
+alias is `ssh_target` in `~/.config/gtex62-core/profiles/mtr/pi5.toml` (`pi5` here).
+
+1. Read the gate. It is a circuit breaker: after an SSH failure it blocks further attempts
+   for a cooldown (3s, then 10s, 30s, 120s, and 600s from the fifth failure in a row), then
+   lets the provider try again by itself.
+
+   ```bash
+   GATE_STATE_DIR=~/.cache/gtex62-core/runtime/mtr bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh status
+   ```
+
+   `OK` means it has already cleared and the row follows on the next poll.
+   `TRIPPED|left=N|fails=N|reason=...` means it is still holding. `fails` is how many
+   attempts in a row have failed, so a high number means the cause has persisted.
+
+2. Run the exact SSH hop the provider uses.
+
+   ```bash
+   ssh -o BatchMode=yes -o ConnectTimeout=5 pi5 true; echo rc=$?
+   ```
+
+   `rc=0` means SSH works. Otherwise read the message:
+
+   - `Permission denied (publickey)`: the key was not offered or is not authorized there.
+     `BatchMode` never prompts, so a passphrase-protected key that is not loaded in
+     `ssh-agent` fails here even though a plain `ssh pi5` works for you. Check with
+     `ssh-add -l`, and see which key the alias uses with `ssh -G pi5 | grep identityfile`.
+   - `Connection timed out`, `No route to host`, `Connection refused`: the host is down or
+     unreachable. Ping its address (shown by `ssh -G pi5 | grep ^hostname`).
+   - `Host key verification failed`: the host's key changed. If you know why (a reinstall),
+     clear the old one with `ssh-keygen -R <hostname>`.
+   - `Could not resolve hostname`: the alias is missing from `~/.ssh/config`.
+
+3. Once the test passes, clear the gate rather than waiting out the cooldown. This
+   fixes nothing by itself: if the cause is still there, the next poll trips it again.
+
+   ```bash
+   GATE_STATE_DIR=~/.cache/gtex62-core/runtime/mtr bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh reset
+   ```
+
+4. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/mtr/fetch_mtr.sh pi5 main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/mtr/pi5/mtr_state.json
+   ```
 
 [End of Procedure]
 
@@ -1431,6 +2413,44 @@ this project's `CLAUDE.md`.
 > once, at startup, and passes it to `refresh_loop` for the life of the process. A repaired
 > profile does not change a running loop.
 
+1. Check which case applies.
+
+   ```bash
+   ls ~/.config/gtex62-core/profiles/net/
+   grep -n -A3 '^\[cache\]' ~/.config/gtex62-core/profiles/net/local.toml
+   ```
+
+   No file listed: it is missing. A file with no `[cache]` lines, or a `[cache]` section
+   without the key: the key is missing.
+
+2. Fix it.
+
+   - File missing: run `bash ~/.config/conky/gtex62-core/bin/gtex62-core-bootstrap-runtime`. It prints `write`
+     for what it installed and `skip` for what already existed.
+   - File present, key missing: add to `~/.config/gtex62-core/profiles/net/local.toml`:
+
+     ```toml
+     [cache]
+     ttl_sec = 1
+     ```
+
+     If a `[cache]` header is already there, add only the key beneath it.
+
+3. Restart the suite. This step is not optional.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice).
+
+4. Confirm NET is refreshing every second. The two timestamps should differ.
+
+   ```bash
+   f=~/.cache/gtex62-core/shared/net/local/status.json; stat -c %y $f; sleep 3; stat -c %y $f
+   ```
+
 ```text
 PROC: ORB FALLBACK TTL
 PROC: ASTRO FALLBACK TTL
@@ -1456,6 +2476,43 @@ fetch missed.
 -REFRESH_LOOP......................................................ALIVE
 ```
 
+1. Check this suite's loop is alive. The launcher keeps one PID file per domain loop.
+
+   ```bash
+   kill -0 "$(cat ~/.cache/gtex62-core/runtime/pids/doctor-net-refresh.pid 2>/dev/null)" 2>/dev/null && echo ALIVE || echo DEAD
+   ```
+
+   - `ALIVE`: go to step 3.
+   - `DEAD`, or no PID file: go to step 2.
+
+2. Restart the suite. The launcher starts every domain's initial refresh and loop at
+   startup, so a restart brings back a dead one.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice). Repeat step 1.
+
+3. The loop is alive but the cache is still missing or stale. Run the provider once by hand
+   and read what it reports.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/net/fetch_net.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/net/local/status.json
+   ```
+
+   `state` of `"ok"` means the cache is written and the row clears on Doctor's next
+   refresh. Any other `state`: read `note` and follow the procedure for it.
+
+> **NOTE:** The loops exit when the suite's Conky window does (each checks that
+> Conky is still running on every cycle). Closing or crashing the Doctor window is the
+> usual way a loop dies. `doctor-` in the PID file name is the suite ID; a cache fed by
+> another suite's launcher uses that suite's ID (`sitrep-`, `osa-`). A fresh cache does
+> not prove *this* suite's loop is alive: another suite's loop can be refreshing the same
+> shared file.
+>
 > **NOTE:** Different from NET FALLBACK TTL. There the cache *is* refreshing, just at 60s;
 > here it is not refreshing at all.
 
@@ -1485,6 +2542,62 @@ used to leave `state:"ok"`.
 -CHECK primary_interface.................................NETWORK profile
 -CHECK OUTBOUND CONNECTIVITY.........................................WAN
 ```
+
+1. See which fields are empty and which interface NETWORK is watching.
+
+   ```bash
+   jq '.' ~/.cache/gtex62-core/shared/network/local/current.json
+   ```
+
+   Look at `wan_ip`, `dns`, `gateway` and the interface name.
+
+2. Check the interface exists and is up. The name comes from `primary_interface` under
+   `[network]` in `~/.config/gtex62-core/site.toml`. If none is set, NETWORK uses the
+   interface of the default route.
+
+   ```bash
+   awk -F'"' '/^primary_interface/{print $2}' ~/.config/gtex62-core/site.toml
+   ip -br link
+   ```
+
+   The configured name must appear in `ip -br link` and read `UP`. A wrong name (a renamed
+   NIC, a typo) empties all three fields. Correct `primary_interface` in `site.toml`.
+
+3. Run the check for each field that was named, the same way the provider gets it.
+
+   - `gateway`:
+
+     ```bash
+     ip route show default
+     ```
+
+     A line starting `default via <address>` is the gateway. No output means no default
+     route: the connection itself is down.
+
+   - `dns`:
+
+     ```bash
+     resolvectl dns <interface>
+     ```
+
+     Use the interface from step 2. It should list at least one address. None means DNS is
+     not configured on that link.
+
+   - `wan_ip`:
+
+     ```bash
+     curl -4fsS --max-time 2 https://api.ipify.org
+     ```
+
+     It should print your public address. A curl error means outbound internet is failing.
+     A VPN will show the VPN's address here, which is expected.
+
+4. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/network/fetch_network.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/network/local/status.json
+   ```
 
 ● IF `wan_ip` alone is named — the public-IP lookup is failing while the interface is up.
 Concentrate on outbound connectivity.
@@ -1543,6 +2656,41 @@ a fallen-back ORB behave identically. The explicit flag is the only way to tell 
 > **CAUTION:** Bootstrap will not fix this second case. It skips a file that already exists,
 > and `--force` overwrites the whole profile, discarding local edits.
 
+1. Check which case applies.
+
+   ```bash
+   ls ~/.config/gtex62-core/profiles/orb/
+   grep -n -A3 '^\[cache\]' ~/.config/gtex62-core/profiles/orb/home.toml
+   ```
+
+   No file listed: it is missing. A file with no `[cache]` lines, or a `[cache]` section
+   without the key: the key is missing.
+
+2. Fix it.
+
+   - File missing: run `bash ~/.config/conky/gtex62-core/bin/gtex62-core-bootstrap-runtime`. It prints `write`
+     for what it installed and `skip` for what already existed.
+   - File present, key missing: add to `~/.config/gtex62-core/profiles/orb/home.toml`:
+
+     ```toml
+     [cache]
+     ttl_sec = 60
+     ```
+
+     If a `[cache]` header is already there, add only the key beneath it.
+
+3. Restart the suite. This step is not optional.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice).
+
+4. The row clears once Doctor next checks the profile. ORB's configured and fallback cadence
+   are both 60s, so the cache itself looks the same either way.
+
 ```text
 PROC: NET FALLBACK TTL
 ```
@@ -1581,6 +2729,28 @@ live profile).
 ```text
 -SET ssh_target.....................................pfsense profile TOML
 ```
+
+1. Set the SSH alias of the pfSense box in `~/.config/gtex62-core/site.toml` (preferred):
+
+   ```toml
+   [pfsense]
+   ssh_target = "pf"
+   ```
+
+   A top-level `ssh_target` in `~/.config/gtex62-core/profiles/pfsense/main_router.toml` overrides it. The
+   value is a `Host` alias from `~/.ssh/config`. Check the alias connects first:
+
+   ```bash
+   ssh -o BatchMode=yes -o ConnectTimeout=5 pf true; echo rc=$?
+   ```
+
+2. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/pfsense/fetch_pfsense.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/status.json
+   ```
 
 [End of Procedure]
 
@@ -1650,6 +2820,58 @@ and `history` envelopes matching the main envelope's state.
 -CHECK SSHPASS CREDENTIALS.......................................PFSENSE
 ```
 
+PFSENSE connects with a key, not a password, so there are no sshpass credentials to check.
+The alias is `ssh_target` in `[pfsense]` of `~/.config/gtex62-core/site.toml` (`pf` here).
+PFSENSE has four gates, one per script, so read all of them:
+
+1. Read the gates. Each is a circuit breaker: after an SSH failure it blocks further
+   attempts for a cooldown (3s, then 10s, 30s, 120s, and 600s from the fifth failure in a
+   row), then lets the provider try again by itself.
+
+   ```bash
+   for d in pfsense router pfblockerng pfsense_ifaces; do
+     printf '%s: ' $d
+     GATE_STATE_DIR=~/.cache/gtex62-core/runtime/$d bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh status
+   done
+   ```
+
+   `OK` means a gate has already cleared. `TRIPPED|left=N|fails=N|reason=...` means it is
+   still holding, and `fails` shows how many attempts in a row have failed.
+
+2. Run the exact SSH hop the providers use.
+
+   ```bash
+   ssh -o BatchMode=yes -o ConnectTimeout=5 pf true; echo rc=$?
+   ```
+
+   `rc=0` means SSH works. Otherwise read the message:
+
+   - `Permission denied (publickey)`: the key was not offered or is not authorized there.
+     `BatchMode` never prompts, so a passphrase-protected key that is not loaded in
+     `ssh-agent` fails here even though a plain `ssh pf` works for you. Check with
+     `ssh-add -l`, and see which key the alias uses with `ssh -G pf | grep identityfile`.
+   - `Connection timed out`, `No route to host`, `Connection refused`: the host is down or
+     unreachable. Ping its address (shown by `ssh -G pf | grep ^hostname`).
+   - `Host key verification failed`: the host's key changed. If you know why (a reinstall),
+     clear the old one with `ssh-keygen -R <hostname>`.
+   - `Could not resolve hostname`: the alias is missing from `~/.ssh/config`.
+
+3. Once the test passes, clear the gates rather than waiting out the cooldown. This fixes
+   nothing by itself: if the cause is still there, the next poll trips them again.
+
+   ```bash
+   for d in pfsense router pfblockerng pfsense_ifaces; do
+     GATE_STATE_DIR=~/.cache/gtex62-core/runtime/$d bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh reset
+   done
+   ```
+
+4. Rerun the main provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/pfsense/fetch_pfsense.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/status.json
+   ```
+
 > **NOTE:** Shared wording with AP and MTR's gates, but each has its own gate and cache.
 
 [End of Procedure]
@@ -1669,6 +2891,41 @@ so identify which one.
 ```text
 -IDENTIFY SUB-CACHE.....status, router, pfblockerng, ifaces, arp, leases
 ```
+
+1. Identify the stale sub-cache. The DCM entry names it. To see for yourself, list the
+   files by age; the oldest enabled one is the stale one.
+
+   ```bash
+   ls -l --time-style=+%T ~/.cache/gtex62-core/shared/pfsense/main_router/
+   ```
+
+   | Sub-cache | File | Script | Gate directory |
+   | --- | --- | --- | --- |
+   | `status` | `status.json` | `fetch_pfsense.sh` | `pfsense` |
+   | `arp`, `leases` | `arp.json`, `leases.json` | `fetch_pfsense.sh` | `pfsense` |
+   | `router` | `router.json` | `fetch_router.sh` | `router` |
+   | `pfblockerng` | `pfblockerng.json` | `fetch_pfblockerng.sh` | `pfblockerng` |
+   | `ifaces` | `ifaces.json` | `fetch_pfsense_ifaces.sh` | `pfsense_ifaces` |
+
+2. Read that sub-cache's gate, using its gate directory from the table.
+
+   ```bash
+   GATE_STATE_DIR=~/.cache/gtex62-core/runtime/router bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh status
+   ```
+
+   `TRIPPED|...` means the cause is SSH: follow PROC: PFSENSE SSH GATE.
+
+3. If the gate reads `OK`, run the sub-cache's script once by hand and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/pfsense/fetch_router.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/router.json
+   ```
+
+   Substitute the script and file from the table. If this refreshes the file, the script
+   works and its loop stopped: use steps 1 and 2 of PROC: TIME NOT RUNNING with the PID file
+   `doctor-<name>-refresh.pid`, where `<name>` is `pfsense`, `router`, `pfblockerng` or
+   `pfsense-ifaces`.
 
 > **NOTE:** Only enabled sub-caches count. A sub-cache whose flag is off leaves a cache file
 > behind that does not make the row stale, and `STALE` overrides the row's HYBRID state — it
@@ -1705,6 +2962,28 @@ and nothing else.
 -OR SET [pihole] ssh_target....................................site.toml
 ```
 
+1. Set the SSH alias of the Pi-hole host in `~/.config/gtex62-core/site.toml` (preferred):
+
+   ```toml
+   [pihole]
+   ssh_target = "pi5"
+   ```
+
+   Or under `[pihole]` in `~/.config/gtex62-core/profiles/pfsense/main_router.toml`, which overrides it.
+   The value is a `Host` alias from `~/.ssh/config`. Check the alias connects first:
+
+   ```bash
+   ssh -o BatchMode=yes -o ConnectTimeout=5 pi5 true; echo rc=$?
+   ```
+
+2. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/pfsense/fetch_pihole.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/pihole.json
+   ```
+
 [End of Procedure]
 
 ---
@@ -1721,6 +3000,53 @@ and nothing else.
 -CHECK SSH ALIAS............................................PIHOLE (Pi5)
 -CHECK SSHPASS CREDENTIALS..................................PIHOLE (Pi5)
 ```
+
+PIHOLE connects with a key, not a password, so there are no sshpass credentials to check.
+The alias is `ssh_target` in `[pihole]` of `~/.config/gtex62-core/site.toml` (`pi5` here).
+
+1. Read the gate. It is a circuit breaker: after an SSH failure it blocks further attempts
+   for a cooldown (3s, then 10s, 30s, 120s, and 600s from the fifth failure in a row), then
+   lets the provider try again by itself.
+
+   ```bash
+   GATE_STATE_DIR=~/.cache/gtex62-core/runtime/pihole bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh status
+   ```
+
+   `OK` means it has already cleared and the row follows on the next poll.
+   `TRIPPED|left=N|fails=N|reason=...` means it is still holding. `fails` is how many
+   attempts in a row have failed, so a high number means the cause has persisted.
+
+2. Run the exact SSH hop the provider uses.
+
+   ```bash
+   ssh -o BatchMode=yes -o ConnectTimeout=5 pi5 true; echo rc=$?
+   ```
+
+   `rc=0` means SSH works. Otherwise read the message:
+
+   - `Permission denied (publickey)`: the key was not offered or is not authorized there.
+     `BatchMode` never prompts, so a passphrase-protected key that is not loaded in
+     `ssh-agent` fails here even though a plain `ssh pi5` works for you. Check with
+     `ssh-add -l`, and see which key the alias uses with `ssh -G pi5 | grep identityfile`.
+   - `Connection timed out`, `No route to host`, `Connection refused`: the host is down or
+     unreachable. Ping its address (shown by `ssh -G pi5 | grep ^hostname`).
+   - `Host key verification failed`: the host's key changed. If you know why (a reinstall),
+     clear the old one with `ssh-keygen -R <hostname>`.
+   - `Could not resolve hostname`: the alias is missing from `~/.ssh/config`.
+
+3. Once the test passes, clear the gate rather than waiting out the cooldown. This
+   fixes nothing by itself: if the cause is still there, the next poll trips it again.
+
+   ```bash
+   GATE_STATE_DIR=~/.cache/gtex62-core/runtime/pihole bash ~/.config/conky/gtex62-core/providers/pfsense/pf-ssh-gate.sh reset
+   ```
+
+4. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/pfsense/fetch_pihole.sh main_router
+   jq '{state, note}' ~/.cache/gtex62-core/shared/pfsense/main_router/pihole.json
+   ```
 
 > **NOTE:** Never "check the PFSENSE row." PIHOLE's gate and cache are independent of
 > pfSense's, the same self-containment as AP and MTR.
@@ -1779,6 +3105,43 @@ poll cycles means the refresh loop is dead, not that a fetch failed.
 -REFRESH_LOOP......................................................ALIVE
 ```
 
+1. Check this suite's loop is alive. The launcher keeps one PID file per domain loop.
+
+   ```bash
+   kill -0 "$(cat ~/.cache/gtex62-core/runtime/pids/doctor-system-refresh.pid 2>/dev/null)" 2>/dev/null && echo ALIVE || echo DEAD
+   ```
+
+   - `ALIVE`: go to step 3.
+   - `DEAD`, or no PID file: go to step 2.
+
+2. Restart the suite. The launcher starts every domain's initial refresh and loop at
+   startup, so a restart brings back a dead one.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice). Repeat step 1.
+
+3. The loop is alive but the cache is still missing or stale. Run the provider once by hand
+   and read what it reports.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/system/fetch_system.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/system/local/status.json
+   ```
+
+   `state` of `"ok"` means the cache is written and the row clears on Doctor's next
+   refresh. Any other `state`: read `note` and follow the procedure for it.
+
+> **NOTE:** The loops exit when the suite's Conky window does (each checks that
+> Conky is still running on every cycle). Closing or crashing the Doctor window is the
+> usual way a loop dies. `doctor-` in the PID file name is the suite ID; a cache fed by
+> another suite's launcher uses that suite's ID (`sitrep-`, `osa-`). A fresh cache does
+> not prove *this* suite's loop is alive: another suite's loop can be refreshing the same
+> shared file.
+
 [End of Procedure]
 
 ---
@@ -1799,6 +3162,43 @@ arithmetic with no external call that can fail, so this means the refresh loop i
 ```text
 -REFRESH_LOOP......................................................ALIVE
 ```
+
+1. Check this suite's loop is alive. The launcher keeps one PID file per domain loop.
+
+   ```bash
+   kill -0 "$(cat ~/.cache/gtex62-core/runtime/pids/doctor-time-refresh.pid 2>/dev/null)" 2>/dev/null && echo ALIVE || echo DEAD
+   ```
+
+   - `ALIVE`: go to step 3.
+   - `DEAD`, or no PID file: go to step 2.
+
+2. Restart the suite. The launcher starts every domain's initial refresh and loop at
+   startup, so a restart brings back a dead one.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   ```
+
+   It stops the running Doctor window first, then prompts for palette and wallpaper (Enter
+   keeps the last choice). Repeat step 1.
+
+3. The loop is alive but the cache is still missing or stale. Run the provider once by hand
+   and read what it reports.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/time/fetch_time.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/time/local/status.json
+   ```
+
+   `state` of `"ok"` means the cache is written and the row clears on Doctor's next
+   refresh. Any other `state`: read `note` and follow the procedure for it.
+
+> **NOTE:** The loops exit when the suite's Conky window does (each checks that
+> Conky is still running on every cycle). Closing or crashing the Doctor window is the
+> usual way a loop dies. `doctor-` in the PID file name is the suite ID; a cache fed by
+> another suite's launcher uses that suite's ID (`sitrep-`, `osa-`). A fresh cache does
+> not prove *this* suite's loop is alive: another suite's loop can be refreshing the same
+> shared file.
 
 ```text
 PROC: PROFILE TOML MISSING
@@ -1830,6 +3230,35 @@ the same as a cache that was never written.
 -PIACTL..........................................................ON PATH
 ```
 
+1. Check whether `piactl` is found, and where PIA put it.
+
+   ```bash
+   command -v piactl
+   ls -l /opt/piavpn/bin/piactl
+   ```
+
+   - Neither exists: the PIA client is not installed. Install it from Private Internet
+     Access, then go to step 3.
+   - `/opt/piavpn/bin/piactl` exists but `command -v piactl` prints nothing: it is
+     installed but not on `PATH`. Go to step 2.
+   - `command -v piactl` prints a path in your shell but the row still reads `piactl not
+     found`: the suite was started from an environment with a different `PATH`. Go to
+     step 3.
+
+2. Put `piactl` on the standard path.
+
+   ```bash
+   sudo ln -s /opt/piavpn/bin/piactl /usr/local/bin/piactl
+   ```
+
+3. Restart the suite so the loops inherit the corrected `PATH`, then confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-doctor/scripts/start-conky.sh
+   bash ~/.config/conky/gtex62-core/providers/vpn/fetch_vpn.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/vpn/local/vpn.json
+   ```
+
 ● IF `note` is `"missing profile toml"`:
 
 ```text
@@ -1857,11 +3286,61 @@ could not be read: `latest_handshake_seconds` and `transfer` go `null`, and `hea
 -CHECK SUDOERS RULE......................./etc/sudoers.d/gtex62-core-vpn
 ```
 
+1. Run the exact command the provider runs, without printing its output. It must succeed
+   and must not ask for a password (`-n` forbids prompting).
+
+   ```bash
+   sudo -n wg show wgpia0 dump > /dev/null && echo RULE OK || echo RULE MISSING
+   ```
+
+   `RULE OK` means the rule works. `sudo: a password is required` followed by `RULE MISSING`
+   means the rule is missing or does not match.
+
+   > **CAUTION:** Do not run `wg show wgpia0 dump` without the redirect. Its first line is
+   > the tunnel's private key, and it would print to your terminal and into any log or paste.
+
+2. See which commands your user may run without a password.
+
+   ```bash
+   sudo -n -l | grep wg
+   ```
+
+   The expected line is `(root) NOPASSWD: /usr/bin/wg show wgpia0 dump`. The match is
+   exact: the rule names the interface `wgpia0`, so if `[interface] name` in
+   `~/.config/gtex62-core/profiles/vpn/local.toml` is anything else, it never matches.
+
+3. If the rule is missing, create it, and validate it before relying on it.
+
+   ```bash
+   printf '%s ALL=(root) NOPASSWD: /usr/bin/wg show wgpia0 dump\n' "$USER" | sudo tee /etc/sudoers.d/gtex62-core-vpn
+   sudo chmod 440 /etc/sudoers.d/gtex62-core-vpn
+   sudo visudo -c -f /etc/sudoers.d/gtex62-core-vpn
+   ```
+
+   `visudo -c` must report the file as parsed OK.
+
+   > **CAUTION:** A malformed file in `/etc/sudoers.d/` can break `sudo` for every user. Do
+   > not skip the `visudo -c` check, and if it reports an error, delete the file with
+   > `sudo rm /etc/sudoers.d/gtex62-core-vpn` and try again.
+
+4. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/vpn/fetch_vpn.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/vpn/local/vpn.json
+   ```
+
 ● IF `note` mentions "wg not found":
 
 ```text
 -CONFIRM wg BINARY.............................................INSTALLED
 ```
+
+```bash
+command -v wg || sudo apt install wireguard-tools
+```
+
+Then rerun the provider as in step 4 above.
 
 > **NOTE:** `health:"DEAD"` on its own is not this procedure. PIA tears the `wgpia0`
 > interface down on an ordinary voluntary disconnect, which drives `health` to `"DEAD"` and
@@ -1894,6 +3373,37 @@ successful ping on record" if none is tracked yet.
 -CHECK TUNNEL INTERFACE ROUTING......................................VPN
 -CHECK 1.1.1.1 THROUGH TUNNEL..................................REACHABLE
 ```
+
+1. Send the same ping the provider sends, through the tunnel interface.
+
+   ```bash
+   ping -I wgpia0 -c1 -W1 1.1.1.1
+   ```
+
+   A reply with `time=` means the tunnel is passing traffic now. The failure was a single
+   dropped ping and has already cleared.
+
+2. If it fails, find out whether the tunnel or the whole connection is the problem.
+
+   ```bash
+   piactl get connectionstate
+   ip -br addr show wgpia0
+   ping -c1 -W1 1.1.1.1
+   ```
+
+   - The plain `ping` (no `-I`) works but the tunnel ping does not: the tunnel is the
+     problem. Reconnect PIA, from the app or with `piactl disconnect` then `piactl connect`.
+   - Neither works: the internet connection is down. The tunnel is not the cause; look at
+     the NETWORK and CONNECT rows.
+   - `wgpia0` is missing from `ip -br addr`, or `connectionstate` is not `Connected`: the VPN is
+     not up. A disconnected VPN is not an error here; reconnect it if you want it on.
+
+3. Rerun the provider and confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/vpn/fetch_vpn.sh local
+   jq '{state, note}' ~/.cache/gtex62-core/shared/vpn/local/vpn.json
+   ```
 
 ● IF this is a single occurrence — a lone dropped ping is transient and clears on the next
 poll.
@@ -1932,6 +3442,32 @@ PROC: VPN WG STATS DEGRADED
 -SET [location] LAT/LON..................................weather profile
 ```
 
+1. Put the OpenWeather key in `~/.config/gtex62-core/site.toml`, where AIR also reads it:
+
+   ```toml
+   [credentials]
+   openweather_api_key = "your-key-here"
+   ```
+
+   An `owm_api_key` under `[credentials]` in `~/.config/gtex62-core/profiles/weather/home.toml` overrides it.
+
+2. Set the coordinates, in `site.toml` (preferred) or, to override for WEATHER alone, under
+   `[location]` in the weather profile:
+
+   ```toml
+   [location.home]
+   lat = 35.0000
+   lon = -89.0000
+   ```
+
+3. No restart is needed: the provider re-reads its TOML files on every run, so the next
+poll picks the change up. Rerun it now to confirm.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/weather/fetch_openweather.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/weather/home/status.json
+   ```
+
 [End of Procedure]
 
 ---
@@ -1952,6 +3488,49 @@ field and its `last_ok` timestamp come straight from `note`
 -CHECK REACHABILITY..........................................OpenWeather
 ```
 
+1. Read the error the fetch logged. `curl` writes its failure there, without the key.
+
+   ```bash
+   tail -n 5 ~/.cache/gtex62-core/shared/weather/home/fetch.log
+   ```
+
+   `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 401` means the key was
+   rejected. `(22) ... 429` means the quota was hit.
+
+   The log is never trimmed, and AIR and WEATHER lines carry no timestamp, so an old error
+   can sit at the bottom. Run `ls -l` on `fetch.log` first: if it was last written long
+   ago, the error is history, not the current fault.
+
+2. Ask OpenWeather the same question the provider asks, and print only the HTTP status.
+   The key is read from `site.toml` and never printed.
+
+   ```bash
+   SITE=~/.config/gtex62-core/site.toml
+   lat=$(awk -F'= *' '/^lat/{print $2; exit}' $SITE)
+   lon=$(awk -F'= *' '/^lon/{print $2; exit}' $SITE)
+   key=$(awk -F'"' '/^openweather_api_key/{print $2}' $SITE)
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$key"
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://api.openweathermap.org/data/2.5/forecast?lat=$lat&lon=$lon&appid=$key"
+   ```
+
+   - `200`: the key and the service are fine right now. Go to the rerun step.
+   - `401` or `403`: the key was rejected. Replace it (see where the key lives, below).
+   - `429`: the quota is used up. Wait for the window to reset, or use a different key.
+   - A curl error instead of a code (`(6)` DNS, `(28)` timeout): the network, not the key.
+     Test it with `curl -sS -o /dev/null -w '%{http_code}\n' https://example.com`.
+
+   The key lives in `[credentials] openweather_api_key` of
+   `~/.config/gtex62-core/site.toml`. An `owm_api_key` under `[credentials]` in the weather
+   profile overrides it. AIR uses the same OpenWeather key, so if AIR OPENWEATHER DEGRADED
+   is also showing, suspect the key or quota first.
+
+3. Rerun the provider and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/weather/fetch_openweather.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/weather/home/status.json
+   ```
+
 ```text
 PROC: SOLAR WAITING
 ```
@@ -1970,6 +3549,49 @@ nothing to serve.
 ```text
 -CHECK REACHABILITY..........................................OpenWeather
 ```
+
+1. Read the error the fetch logged. `curl` writes its failure there, without the key.
+
+   ```bash
+   tail -n 5 ~/.cache/gtex62-core/shared/weather/home/fetch.log
+   ```
+
+   `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 401` means the key was
+   rejected. `(22) ... 429` means the quota was hit.
+
+   The log is never trimmed, and AIR and WEATHER lines carry no timestamp, so an old error
+   can sit at the bottom. Run `ls -l` on `fetch.log` first: if it was last written long
+   ago, the error is history, not the current fault.
+
+2. Ask OpenWeather the same question the provider asks, and print only the HTTP status.
+   The key is read from `site.toml` and never printed.
+
+   ```bash
+   SITE=~/.config/gtex62-core/site.toml
+   lat=$(awk -F'= *' '/^lat/{print $2; exit}' $SITE)
+   lon=$(awk -F'= *' '/^lon/{print $2; exit}' $SITE)
+   key=$(awk -F'"' '/^openweather_api_key/{print $2}' $SITE)
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$key"
+   curl -sS -o /dev/null -w '%{http_code}\n' "https://api.openweathermap.org/data/2.5/forecast?lat=$lat&lon=$lon&appid=$key"
+   ```
+
+   - `200`: the key and the service are fine right now. Go to the rerun step.
+   - `401` or `403`: the key was rejected. Replace it (see where the key lives, below).
+   - `429`: the quota is used up. Wait for the window to reset, or use a different key.
+   - A curl error instead of a code (`(6)` DNS, `(28)` timeout): the network, not the key.
+     Test it with `curl -sS -o /dev/null -w '%{http_code}\n' https://example.com`.
+
+   The key lives in `[credentials] openweather_api_key` of
+   `~/.config/gtex62-core/site.toml`. An `owm_api_key` under `[credentials]` in the weather
+   profile overrides it. AIR uses the same OpenWeather key, so if AIR OPENWEATHER DEGRADED
+   is also showing, suspect the key or quota first.
+
+3. Rerun the provider and read the result.
+
+   ```bash
+   bash ~/.config/conky/gtex62-core/providers/weather/fetch_openweather.sh home
+   jq '{state, note}' ~/.cache/gtex62-core/shared/weather/home/status.json
+   ```
 
 > **NOTE:** SOLAR depends on WEATHER's cache. A WEATHER row stuck here is what SOLAR
 > reports as `WAITING`.
