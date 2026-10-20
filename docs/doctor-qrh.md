@@ -11,12 +11,13 @@ one-line Actions / Remediation table this document expands) and
 [`doctor-missing-conditions.md`](../../gtex62-core/docs/doctor-missing-conditions.md) (the
 per-domain verification evidence behind it).
 
-**Status (2026-09-20): reference for a design-only suite.** `gtex62-doctor` has no
-commits yet, so nothing here describes behavior that exists in the Doctor repo today. The
-provider behavior each procedure cites — `note` text, `state` values, launcher defaults,
-timer settings — is the verified behavior recorded in `doctor-missing-conditions.md`,
-re-checked against `bin/gtex62-core-launch` and `bin/gtex62-core-bootstrap-runtime` where a
-procedure depends on them.
+**Status (2026-10-19): reference for the built suite (v0.2.0).** The provider behavior each
+procedure cites — `note` text, `state` values, launcher defaults, timer settings — is the
+verified behavior recorded in `doctor-missing-conditions.md`, re-checked against
+`bin/gtex62-core-launch` and `bin/gtex62-core-bootstrap-runtime` where a procedure depends on
+them. The commands in each procedure were run against the live providers when they were
+written (2026-10-19), except the ones that change system state (restarting the suite, editing
+sudoers, installing packages, reconnecting the VPN).
 
 ---
 
