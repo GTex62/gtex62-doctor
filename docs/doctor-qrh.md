@@ -1440,6 +1440,9 @@ The field name and its `last_ok` timestamp come straight from `note`
    `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 5xx` is aviationweather.gov
    itself having a bad moment, which usually passes by itself.
 
+   The timestamps are UTC (the trailing `Z`): convert to local time before comparing with
+   when the row changed.
+
    The log is never trimmed, so check `ls -l` on `fetch.log` first: if it was last written
    long ago, the error is history, not the current fault.
 
@@ -1454,6 +1457,10 @@ The field name and its `last_ok` timestamp come straight from `note`
 
    `200` on both means the source is up now. Anything else, or a curl error, is the
    network or the source, and there is nothing to fix on this machine.
+
+   If both return `200` and the log's last line is a `5xx` or a DNS error, the failure was
+   transient. The provider retries on its next poll (600s by default), so the row clears by
+   itself within about ten minutes. Step 3 only makes it immediate.
 
 3. Rerun the provider and read the result.
 
@@ -1490,6 +1497,9 @@ nothing to serve.
    `(6)` is DNS and `(28)` is a timeout: the network. `(22) ... 5xx` is aviationweather.gov
    itself having a bad moment, which usually passes by itself.
 
+   The timestamps are UTC (the trailing `Z`): convert to local time before comparing with
+   when the row changed.
+
    The log is never trimmed, so check `ls -l` on `fetch.log` first: if it was last written
    long ago, the error is history, not the current fault.
 
@@ -1504,6 +1514,10 @@ nothing to serve.
 
    `200` on both means the source is up now. Anything else, or a curl error, is the
    network or the source, and there is nothing to fix on this machine.
+
+   If both return `200` and the log's last line is a `5xx` or a DNS error, the failure was
+   transient. The provider retries on its next poll (600s by default), so the row clears by
+   itself within about ten minutes. Step 3 only makes it immediate.
 
 3. Rerun the provider and read the result.
 
