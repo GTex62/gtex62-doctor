@@ -78,6 +78,23 @@ The Procedure Index at the end is purely alphabetical — a lookup tool, not a s
 (MODEM's three `DEGRADED` reasons can all fire together). Run every procedure whose
 `note` prefix appears.
 
+**Just booted? Wait before running anything.** After a cold start, Doctor, SitRep and OSA all
+fetch at once, and some providers fail their first try because the network, the VPN or DNS is
+not up yet. A few WARN rows and DCM entries (AVIATION, WEATHER, VPN and NETWORK are typical)
+are normal, and they clear by themselves as each provider reaches its next cycle. Give it 5 to
+10 minutes. AIR cycles every 15 minutes, so allow longer for an AIR row. Run a procedure only
+if the condition is still there after that.
+
+**Several unrelated conditions that come and go? That is the line, not a fault to fix.** If DCM
+keeps raising actions across different domains, and they clear and then return (pings dropping
+to zero, recovering and dropping again; MODEM, NETWORK, VPN, WEATHER or AVIATION going DEGRADED,
+then back), the usual cause is T3 timeouts on the cable modem or Comcast working on the line.
+Every provider that reaches the internet succeeds on one cycle and fails on the next. No
+procedure here fixes that. If only OSA is open, pings dropping to zero is the cue to open Doctor
+and SitRep for a better picture. In SitRep, a climbing T3 count on the CM1000 panel or a
+`COMCAST DEGRADED` line in its header is the answer: wait until the line clears. A procedure is
+for one condition that persists across several cycles while the rest of the table stays NOMINAL.
+
 **A `PROC:` inside a procedure is a hand-off.** Finish or rule out the referenced
 procedure; it is not a step you can skip.
 
