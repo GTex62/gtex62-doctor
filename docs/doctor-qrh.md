@@ -89,8 +89,11 @@ if the condition is still there after that.
 keeps raising actions across different domains, and they clear and then return (pings dropping
 to zero, recovering and dropping again; MODEM, NETWORK, VPN, WEATHER or AVIATION going DEGRADED,
 then back), the usual cause is T3 timeouts on the cable modem or Comcast working on the line.
-Every provider that reaches the internet succeeds on one cycle and fails on the next. No
-procedure here fixes that. If only OSA is open, pings dropping to zero is the cue to open Doctor
+Every provider that reaches the internet succeeds on one cycle and fails on the next. One such
+event ran for about an hour, with AVIATION, NETWORK, VPN and WEATHER cycling between bad and good
+the whole time. A provider shows the trouble only if the line is bad when its own refresh lands,
+so a clean row (AIR refreshes every 15 minutes) does not rule the line out. No procedure here
+fixes that. If only OSA is open, pings dropping to zero is the cue to open Doctor
 and SitRep for a better picture. In SitRep, a climbing T3 count on the CM1000 panel or a
 `COMCAST DEGRADED` line in its header is the answer: wait until the line clears. A procedure is
 for one condition that persists across several cycles while the rest of the table stays NOMINAL.
@@ -709,6 +712,15 @@ cache to serve. Clears on the first successful fetch.
 -CHECK REACHABILITY..................................OpenWeather, AirNow
 ```
 
+> **NOTE:** If AVIATION, NETWORK, VPN and WEATHER are showing a condition at the same time as AIR,
+> suspect the line before this procedure: every one of them needs the internet. Open SitRep and
+> check the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). AIR refreshes only every 15 minutes, so it can miss a bad stretch the other four
+> show: a clean AIR row does not rule the line out. If only AIR is affected, carry on with the
+> steps below.
+
 1. Read the error the fetch logged. `curl` writes its failure there, without the key.
 
    ```bash
@@ -750,6 +762,15 @@ sources returned data.
 ```text
 -CHECK API STATUS....................................AirNow, OpenWeather
 ```
+
+> **NOTE:** If AVIATION, NETWORK, VPN and WEATHER are showing a condition at the same time as AIR,
+> suspect the line before this procedure: every one of them needs the internet. Open SitRep and
+> check the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). AIR refreshes only every 15 minutes, so it can miss a bad stretch the other four
+> show: a clean AIR row does not rule the line out. If only AIR is affected, carry on with the
+> steps below.
 
 1. See which source lost its timestamp.
 
@@ -801,6 +822,15 @@ profile, so a site that never configured it is not flagged.
 -CHECK QUOTA.................................................OpenWeather
 ```
 
+> **NOTE:** If AVIATION, NETWORK, VPN and WEATHER are showing a condition at the same time as AIR,
+> suspect the line before this procedure: every one of them needs the internet. Open SitRep and
+> check the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). AIR refreshes only every 15 minutes, so it can miss a bad stretch the other four
+> show: a clean AIR row does not rule the line out. If only AIR is affected, carry on with the
+> steps below.
+
 1. Ask OpenWeather the same question the provider asks, and print only the HTTP status.
    The key is read from `site.toml` and never printed.
 
@@ -849,6 +879,15 @@ profile, so a site that never configured it is not flagged.
 -CHECK API KEY....................................................AirNow
 -CHECK QUOTA......................................................AirNow
 ```
+
+> **NOTE:** If AVIATION, NETWORK, VPN and WEATHER are showing a condition at the same time as AIR,
+> suspect the line before this procedure: every one of them needs the internet. Open SitRep and
+> check the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). AIR refreshes only every 15 minutes, so it can miss a bad stretch the other four
+> show: a clean AIR row does not rule the line out. If only AIR is affected, carry on with the
+> steps below.
 
 1. Ask AirNow the same question the provider asks, and print only the HTTP status. The key
    is read from `site.toml` and never printed.
@@ -1447,6 +1486,13 @@ The field name and its `last_ok` timestamp come straight from `note`
 -CHECK REACHABILITY..................................aviationweather.gov
 ```
 
+> **NOTE:** If NETWORK, VPN and WEATHER are showing a condition at the same time as AVIATION, suspect the
+> line before this procedure: every one of them needs the internet. Open SitRep and check
+> the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). If only this domain is affected, carry on with the steps below.
+
 1. Read the error the fetch logged. Each line is tagged with the time and which call
    produced it.
 
@@ -1503,6 +1549,13 @@ nothing to serve.
 ```text
 -CHECK REACHABILITY..................................aviationweather.gov
 ```
+
+> **NOTE:** If NETWORK, VPN and WEATHER are showing a condition at the same time as AVIATION, suspect the
+> line before this procedure: every one of them needs the internet. Open SitRep and check
+> the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). If only this domain is affected, carry on with the steps below.
 
 1. Read the error the fetch logged. Each line is tagged with the time and which call
    produced it.
@@ -2575,6 +2628,13 @@ used to leave `state:"ok"`.
 -CHECK OUTBOUND CONNECTIVITY.........................................WAN
 ```
 
+> **NOTE:** If AVIATION, VPN and WEATHER are showing a condition at the same time as NETWORK, suspect the
+> line before this procedure: every one of them needs the internet. Open SitRep and check
+> the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). If only this domain is affected, carry on with the steps below.
+
 1. See which fields are empty and which interface NETWORK is watching.
 
    ```bash
@@ -3406,6 +3466,13 @@ successful ping on record" if none is tracked yet.
 -CHECK 1.1.1.1 THROUGH TUNNEL..................................REACHABLE
 ```
 
+> **NOTE:** If AVIATION, NETWORK and WEATHER are showing a condition at the same time as VPN, suspect the
+> line before this procedure: every one of them needs the internet. Open SitRep and check
+> the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). If only this domain is affected, carry on with the steps below.
+
 1. Send the same ping the provider sends, through the tunnel interface.
 
    ```bash
@@ -3520,6 +3587,13 @@ field and its `last_ok` timestamp come straight from `note`
 -CHECK REACHABILITY..........................................OpenWeather
 ```
 
+> **NOTE:** If AVIATION, NETWORK and VPN are showing a condition at the same time as WEATHER, suspect the
+> line before this procedure: every one of them needs the internet. Open SitRep and check
+> the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). If only this domain is affected, carry on with the steps below.
+
 1. Read the error the fetch logged. `curl` writes its failure there, without the key.
 
    ```bash
@@ -3581,6 +3655,13 @@ nothing to serve.
 ```text
 -CHECK REACHABILITY..........................................OpenWeather
 ```
+
+> **NOTE:** If AVIATION, NETWORK and VPN are showing a condition at the same time as WEATHER, suspect the
+> line before this procedure: every one of them needs the internet. Open SitRep and check
+> the alert banner, the gateway panel (loss), the CM1000 panel (T3 count) and the VPN status.
+> A climbing T3 count, or `COMCAST DEGRADED` in SitRep's header, means wait for the line to
+> clear (see "Several unrelated conditions that come and go?" in How to Read This
+> Handbook). If only this domain is affected, carry on with the steps below.
 
 1. Read the error the fetch logged. `curl` writes its failure there, without the key.
 
