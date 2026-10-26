@@ -148,6 +148,8 @@ are listed under [Deliberately Absent](#deliberately-absent).
     - [AIRGRADIENT FIELDS MISSING](#airgradient-fields-missing)
   - [Cache Staleness](#cache-staleness-1)
     - [AIRGRADIENT NOT RUNNING](#airgradient-not-running)
+  - [Not Reported by Doctor](#not-reported-by-doctor)
+    - [AIRGRADIENT TREND SHOWS --](#airgradient-trend-shows---)
 - [ALERTS](#alerts)
   - [Cache Staleness](#cache-staleness-2)
     - [ALERTS NOT RUNNING](#alerts-not-running)
@@ -1104,6 +1106,52 @@ unwritable.
 > dead or unreachable device leaves the file fresh and reads `DEGRADED` instead (PROC: AIRGRADIENT
 > UNREACHABLE). If the cause is that the launching suite does not list the domain, the row says so
 > (PROC: DOMAIN NOT LISTED).
+
+[End of Procedure]
+
+### Not Reported by Doctor
+
+Doctor's AIRGRADIENT row watches the provider and the device. The optional trend columns on the ENV panel (the `1H` and `24H`
+change) have one dependency Doctor does not watch, so a failure there shows only as `--`.
+
+<a id="airgradient-trend-shows---"></a>**AIRGRADIENT TREND SHOWS --**
+
+**Indications:** the AIRGRADIENT row is nominal and the readings are fine, but the `1H` column on the indoor table stays `--`
+well after a boot, and the SRC line lacks `| HA`. There is no DCM entry.
+
+The `1H` column needs an hour of readings. The provider has them once it has run for an hour; it can also fill the gap from Home
+Assistant's history when `[trend] use_ha_export = true` is set in the airgradient profile, about 6 minutes after a boot. If that
+option is on and `1H` is still `--` after 10 minutes, the Home Assistant export has not run. (`24H` is `--` only if the
+provider was not running at the same time yesterday and has no input logs from then.)
+
+```text
+-RUN gtex62-airgradient-ha-export..............systemd user timer
+```
+
+1. Check the timer and its last run.
+
+   ```bash
+   systemctl --user status gtex62-airgradient-ha-export.timer
+   journalctl --user -u gtex62-airgradient-ha-export.service --since -1h --no-pager | tail -20
+   ```
+
+2. Check that Home Assistant's database is reachable. The export reads it through a mount.
+
+   ```bash
+   ls ~/.local/ha-config/home-assistant_v2.db
+   ```
+
+   ● IF it fails or hangs: the mount is down. If a Home Assistant share password was changed, the credentials file named in
+   `/etc/fstab` for that mount needs the new one.
+
+3. Run the export once by hand, then wait for the next poll (30 seconds).
+
+   ```bash
+   systemctl --user start gtex62-airgradient-ha-export.service
+   ```
+
+If nothing here applies, set `use_ha_export = false` and accept `--` for the first hour after each boot; nothing else depends
+on it.
 
 [End of Procedure]
 
